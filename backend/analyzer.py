@@ -112,54 +112,101 @@ class ModelManager:
             _loader()
 
 
+
 def classify_sentence_nli(
     sentence: str, manager: ModelManager
 ) -> Tuple[str, float]:
-    """Classify sentence risk using cross-encoder NLI hypotheses or calibrated heuristics."""
-    if manager.classifier_loaded and manager.classifier_model and manager.classifier_tokenizer:
+    """Classify a sentence by comparing NLI entailment scores for three risk hypotheses."""
+
+    if (
+        manager.classifier_loaded
+        and manager.classifier_model is not None
+        and manager.classifier_tokenizer is not None
+    ):
         try:
-            # Pair sentence premise with each risk hypothesis
+            labels = ["Low", "Moderate", "High"]
             pairs = [
-                (sentence, NLI_HYPOTHESES["Low"]),
-                (sentence, NLI_HYPOTHESES["Moderate"]),
-                (sentence, NLI_HYPOTHESES["High"]),
+                (sentence, NLI_HYPOTHESES[label])
+                for label in labels
             ]
+
             features = manager.classifier_tokenizer(
-                pairs, padding=True, truncation=True, max_length=256, return_tensors="pt"
+                pairs,
+                padding=True,
+                truncation=True,
+                max_length=256,
+                return_tensors="pt",
             ).to(manager.device)
 
             with torch.no_grad():
-                outputs = manager.classifier_model(**features)
-                if outputs.logits.shape[-1] == 1:
-                    scores = outputs.logits.squeeze(-1)
-                else:
-                    scores = outputs.logits[:, -1]
-                probs = torch.softmax(scores, dim=0).cpu().tolist()
+                logits = manager.classifier_model(**features).logits
 
-            tier_map = ["Low", "Moderate", "High"]
-            best_idx = int(torch.argmax(torch.tensor(probs)).item())
-            return tier_map[best_idx], round(float(probs[best_idx]), 4)
-        except Exception as e:
-            logger.warning("NLI inference failed for sentence, falling back to heuristics: %s", e)
+            # Map output columns using the model's actual label configuration.
+            config = manager.classifier_model.config
+            id2label = {
+                int(key): str(value).lower()
+                for key, value in config.id2label.items()
+            }
 
-    # Calibrated startup heuristic fallback (DA1 Section 5 Fallback Plan)
+            entailment_ids = [
+                idx for idx, label in id2label.items()
+                if "entail" in label
+            ]
+            if len(entailment_ids) != 1:
+                raise ValueError(
+                    f"Cannot identify entailment label in {id2label}"
+                )
+
+            # Each sentence/hypothesis pair gets one entailment score.
+            entailment_scores = torch.softmax(logits, dim=-1)[
+                :, entailment_ids[0]
+            ]
+
+            # Compare the three hypotheses and normalise for display.
+            probabilities = torch.softmax(
+                entailment_scores, dim=0
+            ).cpu().tolist()
+
+            best_idx = max(
+                range(len(probabilities)),
+                key=lambda idx: probabilities[idx],
+            )
+
+            return labels[best_idx], round(
+                float(probabilities[best_idx]), 4
+            )
+
+        except Exception as exc:
+            logger.warning(
+                "NLI classification failed; using heuristic fallback: %s",
+                exc,
+            )
+
+    # Keep the existing heuristic fallback below this line.
     s_lower = sentence.lower()
 
-    high_hits = sum(1 for p in HYPERBOLIC_PATTERNS if re.search(p, s_lower))
-    grounded_hits = sum(1 for p in GROUNDED_PATTERNS if re.search(p, s_lower))
-    vague_hits = sum(1 for p in VAGUE_PATTERNS if re.search(p, s_lower))
+    high_hits = sum(
+        1 for pattern in HYPERBOLIC_PATTERNS
+        if re.search(pattern, s_lower)
+    )
+    grounded_hits = sum(
+        1 for pattern in GROUNDED_PATTERNS
+        if re.search(pattern, s_lower)
+    )
+    vague_hits = sum(
+        1 for pattern in VAGUE_PATTERNS
+        if re.search(pattern, s_lower)
+    )
 
     if high_hits > 0:
-        confidence = min(0.78 + (high_hits * 0.08), 0.96)
-        return "High", round(confidence, 2)
-    elif grounded_hits > 0 and vague_hits == 0:
-        confidence = min(0.80 + (grounded_hits * 0.06), 0.98)
-        return "Low", round(confidence, 2)
-    elif vague_hits > 0:
-        confidence = min(0.74 + (vague_hits * 0.07), 0.92)
-        return "Moderate", round(confidence, 2)
-    else:
-        return "Moderate", 0.68
+        return "High", min(0.78 + high_hits * 0.08, 0.96)
+    if grounded_hits > 0 and vague_hits == 0:
+        return "Low", min(0.80 + grounded_hits * 0.06, 0.98)
+    if vague_hits > 0:
+        return "Moderate", min(0.74 + vague_hits * 0.07, 0.92)
+
+    return "Moderate", 0.68
+
 
 
 def generate_objection_question(sentence: str, risk: str, manager: ModelManager) -> Optional[str]:
