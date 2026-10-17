@@ -76,9 +76,9 @@ class ModelManager:
                 if not self.classifier_loaded:
                     try:
                         logger.info("Checking local cache for %s...", self.classifier_name)
-                        tok = AutoTokenizer.from_pretrained(self.classifier_name, local_files_only=True)
+                        tok = AutoTokenizer.from_pretrained(self.classifier_name, local_files_only=False)
                         model = AutoModelForSequenceClassification.from_pretrained(
-                            self.classifier_name, local_files_only=True
+                            self.classifier_name, local_files_only=False
                         ).to(self.device)
                         model.eval()
                         self.classifier_tokenizer = tok
@@ -91,9 +91,9 @@ class ModelManager:
                 if not self.generator_loaded:
                     try:
                         logger.info("Checking local cache for %s...", self.generator_name)
-                        tok = AutoTokenizer.from_pretrained(self.generator_name, local_files_only=True)
+                        tok = AutoTokenizer.from_pretrained(self.generator_name, local_files_only=False)
                         model = AutoModelForSeq2SeqLM.from_pretrained(
-                            self.generator_name, local_files_only=True
+                            self.generator_name, local_files_only=False
                         ).to(self.device)
                         model.eval()
                         self.generator_tokenizer = tok
