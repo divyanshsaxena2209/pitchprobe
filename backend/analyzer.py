@@ -506,12 +506,14 @@ def analyze_sentences(
 
     if manager.generator_loaded:
         mode = f"{classifier_mode_name}+transformer_generator"
+        generator_display_name = manager.generator_name
     else:
-        mode = f"{classifier_mode_name}+heuristic_generator"
+        mode = f"{classifier_mode_name}+targeted_question_rules"
+        generator_display_name = "targeted_question_rules"
 
     pipeline_info = {
         "classifier": manager.classifier_name,
-        "generator": manager.generator_name,
+        "generator": generator_display_name,
         "mode": mode,
         "note": (
             "Claim-first screening filters non-claims before risk scoring; "
