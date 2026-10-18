@@ -498,7 +498,7 @@ def analyze_sentences(
     summary_counts = {"low_risk": 0, "moderate_risk": 0, "high_risk": 0}
 
     if manager.classifier_loaded and manager.classifier_mode == "fine_tuned":
-        classifier_mode_name = "fine_tuned_four_label"
+        classifier_mode_name = "fine_tuned_three_label"
     elif manager.classifier_loaded:
         classifier_mode_name = "transformer_nli"
     else:
