@@ -1,0 +1,8 @@
+fastapi
+uvicorn[standard]
+python-multipart
+pdfplumber
+spacy
+transformers
+"protobuf<5.0.0"
+huggingface_hub[hf_xet]
