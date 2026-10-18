@@ -371,28 +371,30 @@ def _targeted_investor_question(sentence: str, risk: str) -> str:
     """Generate one evidence-seeking VC question based on the claim's main topic."""
     text = sentence.lower()
 
-    if re.search(r"\b(tam|sam|som|market size|market share|penetration|beachhead|trillion|billion|market estimate|market sizing)\b", text):
-        return (
-            "What bottom-up assumptions for the reachable customer segment, price, "
-            "and adoption rate support this market estimate?"
-        )
-
-    if re.search(r"\b(interviews?|waitlist|sign-ups?|paid units|paid deposits|pilot|beta|traction|activation|retention|conversion|weekly active|customers?|users?)\b", text):
-        return (
-            "How many of these interested users or pilot participants converted to "
-            "paying customers, and what evidence supports that conversion rate?"
-        )
-
+    # Put financial forecasts before traction: a forecast may mention conversion,
+    # users or customers, but the question should challenge the financial model.
     if re.search(r"\b(revenue|forecast|financial plan|ebitda|runway|crore|million|billion|funding|raise|raising|valuation|year three|fy\d{2})\b", text):
         return (
             "Which assumptions for sales volume, realised price, conversion, and gross "
             "margin drive this forecast, and what evidence validates them?"
         )
 
+    if re.search(r"\b(tam|sam|som|market size|market share|penetration|beachhead|trillion|billion|market estimate|market sizing)\b", text):
+        return (
+            "What bottom-up assumptions for the reachable customer segment, price, "
+            "and adoption rate support this market estimate?"
+        )
+
     if re.search(r"\b(unit economics|cogs|gross margin|contribution|manufacturing cost|asp|fulfilment|fulfillment|warranty|cost per|unit cost|pricing|price)\b", text):
         return (
             "Do these unit economics include discounts, returns, fulfilment, warranty, "
             "channel fees, and acquisition cost, and which supplier quotes support them?"
+        )
+
+    if re.search(r"\b(interviews?|waitlist|sign-ups?|paid units|paid deposits|pilot|beta|traction|activation|retention|conversion|weekly active|customers?|users?)\b", text):
+        return (
+            "How many of these interested users or pilot participants converted to "
+            "paying customers, and what evidence supports that conversion rate?"
         )
 
     if re.search(r"\b(competitors?|competition|incumbents?|moat|defensib|patent|competitive advantage|clone|copy)\b", text):
