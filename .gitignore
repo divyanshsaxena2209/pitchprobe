@@ -39,3 +39,11 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Python-generated files and local training outputs
+__pycache__/
+*.py[cod]
+.pytest_cache/
+training/artifacts/
+training/data/claims.csv
+training/data/private/
