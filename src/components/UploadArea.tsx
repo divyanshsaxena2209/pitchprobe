@@ -515,7 +515,7 @@ export default function UploadArea({ onResultsChange }: UploadAreaProps) {
                     </span>
                     <div className="flex items-center gap-2">
                       <span className="text-[11px] text-[#73746F]">
-                        {Math.round(item.score * 100)}% confidence
+                        {Math.round(item.score * 100)}% relative support
                       </span>
                       {item.risk === "High" && (
                         <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-[#FAF0EE] text-[#9E3628] border border-[#F2CDC7]">
