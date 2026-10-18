@@ -86,14 +86,17 @@ def install_windows_socketpair_workaround() -> None:
 
 
 def update_backend_url(port: int) -> None:
-    """Preserve other .env.local values and update only BACKEND_URL."""
+    """Set server-side and browser-visible backend URLs, preserving other env values."""
     env_path = ROOT / ".env.local"
     existing = env_path.read_text(encoding="utf-8") if env_path.exists() else ""
     lines = [
         line for line in existing.splitlines()
         if not line.startswith("BACKEND_URL=")
+        and not line.startswith("NEXT_PUBLIC_BACKEND_URL=")
     ]
-    lines.append(f"BACKEND_URL=http://127.0.0.1:{port}")
+    backend_url = f"http://127.0.0.1:{port}"
+    lines.append(f"BACKEND_URL={backend_url}")
+    lines.append(f"NEXT_PUBLIC_BACKEND_URL={backend_url}")
     env_path.write_text("\n".join(lines).strip() + "\n", encoding="utf-8")
 
 
