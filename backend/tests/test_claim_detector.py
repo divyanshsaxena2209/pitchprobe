@@ -140,3 +140,17 @@ def test_finetuned_classifier_path_skips_nonclaims_and_uses_four_labels(monkeypa
     assert pipeline_info["mode"].startswith("fine_tuned_four_label")
     assert all(item["question"] is None for item in results if item["risk"] == "Low")
     assert all(item["question"] for item in results if item["risk"] in ("Moderate", "High"))
+
+
+def test_cpu_device_override_does_not_probe_cuda(monkeypatch):
+    import torch
+    import backend.analyzer as analyzer
+
+    monkeypatch.setenv("PITCHPROBE_DEVICE", "cpu")
+    monkeypatch.setattr(
+        torch.cuda,
+        "is_available",
+        lambda: (_ for _ in ()).throw(AssertionError("CUDA must not be probed in CPU mode")),
+    )
+    manager = analyzer.ModelManager()
+    assert manager.device == "cpu"
