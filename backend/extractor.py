@@ -143,20 +143,40 @@ def _extract_layout_blocks(page) -> List[str]:
             candidate["last_text"] = text
 
     ordered = sorted(blocks, key=lambda block: (float(block["top"]), float(block["x0"])))
-    texts = []
+    entries: List[Dict[str, object]] = []
     for block in ordered:
         text = re.sub(r"\s+", " ", " ".join(block["lines"])).strip()
         if text:
-            texts.append(text)
+            entries.append({
+                "top": float(block["top"]),
+                "x0": float(block["x0"]),
+                "text": text,
+            })
 
-    # Large metric cards often place a value and its descriptor on separate
-    # lines with a large vertical gap. Reattach only when both align to a column.
+    # Large metric cards often place a value and descriptor on separate lines.
+    # Reattach values only to nearby text in the same column.
     merged: List[Dict[str, object]] = []
-    for text in texts:
-        # Coordinates are reconstructed below from the source chunks by matching
-        # text at block starts; simple text-only fallback avoids guessing when
-        # the same short value repeats on a slide.
-        merged.append({"text": text})
+    for entry in entries:
+        text = str(entry["text"])
+        match_index = None
+        for index in range(len(merged) - 1, max(-1, len(merged) - 10), -1):
+            previous = merged[index]
+            vertical_gap = float(entry["top"]) - float(previous["top"])
+            if vertical_gap > 58:
+                continue
+            if (
+                15 <= vertical_gap <= 58
+                and abs(float(entry["x0"]) - float(previous["x0"])) <= _COLUMN_X_TOLERANCE
+                and _METRIC_VALUE.fullmatch(str(previous["text"]))
+                and len(text.split()) <= 8
+            ):
+                match_index = index
+                break
+        if match_index is not None:
+            previous = merged[match_index]
+            previous["text"] = f'{previous["text"]} {text}'
+        else:
+            merged.append(dict(entry))
     return [str(item["text"]) for item in merged]
 
 
