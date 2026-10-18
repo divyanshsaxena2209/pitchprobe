@@ -1,7 +1,7 @@
-"""Fine-tune DeBERTa for NON_CLAIM / LOW / MODERATE / HIGH labels.
+"""Fine-tune DeBERTa for LOW / MODERATE / HIGH claim-risk labels.
 
 Run from the repository root, preferably in a Colab GPU runtime:
-python -m training.train_classifier --data-csv training/data/claims.csv
+python -m training.train_classifier --data-csv training/data/external_claims.csv
 """
 
 import argparse
@@ -67,7 +67,7 @@ def to_dataset(rows, tokenizer, label2id):
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--data-csv", default="training/data/claims.csv")
+    parser.add_argument("--data-csv", default="training/data/external_claims.csv")
     parser.add_argument(
         "--output-dir",
         default="training/artifacts/pitchprobe-deberta-claims",
@@ -95,7 +95,7 @@ def main() -> None:
     print(f"Device: {'cuda' if torch.cuda.is_available() else 'cpu'}")
     print(
         "The pretrained DeBERTa encoder is reused; the original NLI output "
-        "head is replaced with a new four-label classification head."
+        "head is replaced with a new three-label risk-classification head."
     )
     tokenizer = AutoTokenizer.from_pretrained(args.model_name)
     model = AutoModelForSequenceClassification.from_pretrained(
