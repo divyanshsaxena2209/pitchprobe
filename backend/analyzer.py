@@ -50,7 +50,23 @@ class ModelManager:
     _instance: Optional["ModelManager"] = None
 
     def __init__(self):
-        self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        # PITCHPROBE_DEVICE=cpu bypasses CUDA initialization entirely. This is
+        # useful on Windows systems where the GPU driver/native CUDA stack can
+        # terminate Python rather than raising a catchable exception.
+        requested_device = os.environ.get("PITCHPROBE_DEVICE", "auto").strip().lower()
+        if requested_device == "cpu":
+            self.device = "cpu"
+        elif requested_device == "cuda":
+            if torch.cuda.is_available():
+                self.device = "cuda"
+            else:
+                logger.warning(
+                    "PITCHPROBE_DEVICE=cuda was requested, but CUDA is unavailable; using CPU."
+                )
+                self.device = "cpu"
+        else:
+            self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        logger.info("PitchProbe inference device: %s", self.device)
         self.classifier_tokenizer = None
         self.classifier_model = None
         self.generator_tokenizer = None
