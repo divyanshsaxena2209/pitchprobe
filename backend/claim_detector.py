@@ -108,6 +108,12 @@ PRODUCT_SUBJECT_ACTION = re.compile(
 )
 
 NON_CLAIM_PATTERNS = [
+    # Pitch-deck furniture, source notes, and decorative labels.
+    r"^\s*\d{1,2}\s*/\s*(?:the problem|the solution|product|technology|market opportunity|customer|competitive landscape|business model|go-to-market|early signals|financial plan|risks?(?: & mitigations)?|roadmap|team|the ask)\s*$",
+    r"\bsonora\s*/\s*seed\b.*\billustrative\b.*\bnot an offer\b",
+    r"^\s*(?:source url:|confidentiality note$|for discussion and analytical testing only|illustrative assumptions$|market reference$|proposed advisor profile$|use of funds$|what the signal does / does not say$|positive$|still unproven$|earable$|phone app$|ai services$|work tools$|on device$|phone / cloud$)",
+    r"^\s*grand view research,",
+    r"\b(?:all company, founder, traction and forecast data are illustrative|all figures below are fictional planning assumptions)\b",
     # Section headings and document furniture.
     r"^\s*(?:references?|bibliography|appendix|table of contents)\s*:?\s*$",
     r"^\s*(?:table|figure)\s+\d+\b",
@@ -158,8 +164,11 @@ def document_warning_for_text(raw_text: Optional[str]) -> Optional[str]:
 
 
 def normalize_claim_text(text: str) -> str:
-    """Restore recoverable word boundaries lost in compact PDF text runs."""
-    candidate = re.sub(r"(?<=[a-z])(?=[A-Z])", " ", text or "")
+    """Repair recoverable word boundaries and glyph artifacts from PDF extraction."""
+    candidate = re.sub(r"\(cid:\d+\)", " • ", text or "", flags=re.IGNORECASE)
+    candidate = re.sub(r"(?<!\w)fi(?!\w)", "→", candidate, flags=re.IGNORECASE)
+    candidate = re.sub(r"(?<![A-Za-z])n(?=\s?\d)", "₹", candidate)
+    candidate = re.sub(r"(?<=[a-z])(?=[A-Z])", " ", candidate)
     candidate = re.sub(r"(?<=[A-Z])(?=[A-Z][a-z])", " ", candidate)
     return re.sub(r"\s+", " ", candidate).strip()
 
@@ -172,6 +181,20 @@ def is_obvious_non_claim(text: str) -> bool:
         and BUSINESS_TERMS.search(candidate)
     )
     if (len(candidate) < 12 or len(candidate.split()) < 3) and not has_metric:
+        return True
+
+    words = candidate.split()
+    if len(words) > 48:
+        # Claim-like text from an individual slide is rarely this long; such
+        # chunks usually indicate that PDF columns or table cells were merged.
+        return True
+    if candidate.count("→") >= 2 and not has_metric:
+        return True
+    if re.search(r"\b(?:l e\d|\w+\(cid:\d+)", candidate, re.IGNORECASE):
+        return True
+    if re.search(r"\b(?:sonora\s*/\s*seed|oct\s+2026)\b", candidate, re.IGNORECASE) and (
+        "illustrative" in candidate.lower() or "not an offer" in candidate.lower()
+    ):
         return True
 
     for pattern in NON_CLAIM_PATTERNS:
@@ -238,6 +261,13 @@ def is_investor_claim(text: str, manager: Optional[object] = None) -> bool:
         re.search(r"[$€£₹%]|\b\d+(?:\.\d+)?\b", candidate)
         and has_business_term
     )
+
+    # Slogans such as "Our ears are always on" and short incomplete fragments
+    # should not enter risk scoring merely because a zero-shot model admits them.
+    if len(candidate.split()) <= 8 and not has_metric and not has_business_term:
+        return False
+    if "→" in candidate and not has_assertion and not has_metric:
+        return False
 
     # High-confidence business claims and slide metrics do not need another
     # model call. This keeps compact items such as "TAM: $5B" in the pipeline.
