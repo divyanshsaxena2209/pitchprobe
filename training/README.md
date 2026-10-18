@@ -93,7 +93,13 @@ Before using any additional source, check its own dataset card and licence, cite
 
 The base `google/flan-t5-small` produced generic questions in the observed result, so the app now uses targeted question rules by default. FLAN-T5 is opt-in with `PITCHPROBE_USE_FLAN_T5=1` for experiments.
 
-The public datasets above do not directly supply claim → good investor-objection pairs. FinQA/TAT-QA are useful auxiliary finance-question datasets but do not teach the model to challenge a pitch's weakest assumption. For true generator fine-tuning using external data only, the next step is to build a separate dataset from public financial claims plus reviewed, evidence-seeking questions derived from those claims. Keep each source's licence and attribution with the derived records; do not use personal uploads or generated PitchProbe answers as targets.
+Useful public sources for a **future external-only question-generation dataset**:
+
+- [Startup Investor Falsification Question Bank](https://huggingface.co/datasets/mheilimo/startup-investor-falsification-question-bank): 48 original evidence-seeking questions across 12 private-company review dimensions; the dataset card lists **CC BY 4.0** and requires attribution to Playful Pixels Oy / DDScore.ai. It contains question templates and evidence requests, but not a matched claim-plus-target-question pair for every example. Use it as an externally sourced question bank, not as a ready-made seq2seq training set.
+- [Private-company first-pass due-diligence checklist](https://huggingface.co/datasets/mheilimo/private-company-due-diligence-checklist): 12 dimension-level review prompts; the card lists **CC BY 4.0**. It is a useful source of topic coverage, but 12 rows are not enough to fine-tune a generator.
+- [FinQA](https://huggingface.co/datasets/ibm-research/finqa): around 8,000 questions/answers from financial reports, listed as **CC BY 4.0**. It can provide financial question style and numerical reasoning examples, but these are not venture-capital challenge questions.
+
+**Do not fine-tune FLAN-T5 on those questions alone.** Seq2seq training needs source-target pairs. A useful pair would contain the claim, the risk category, relevant evidence/context, and a reviewed investor question as the target. The public sources above do not provide enough directly matched, high-quality pairs for PitchProbe's exact task. The honest next step is to curate an external-only paired dataset from public claims and the question bank, review the claim-question matches, and keep entire source groups separate between train/validation/test. Until then, keep the current targeted-question fallback rather than training on unrelated questions or self-generated PitchProbe outputs.
 
 ## Load a fine-tuned classifier locally (only after evaluation)
 
