@@ -4,6 +4,7 @@ from backend.claim_detector import (
     document_warning_for_text,
     is_investor_claim,
 )
+from backend.segmenter import split_into_sentences
 
 
 def test_keeps_investor_facing_business_claims():
@@ -93,3 +94,16 @@ def test_analyzer_scores_claims_but_skips_non_claims():
     assert results[0]["text"].startswith("We achieved $10k MRR")
     assert summary["low_risk"] + summary["moderate_risk"] + summary["high_risk"] == 1
     assert pipeline_info["document_warning"] is None
+
+
+def test_detects_compacted_academic_metadata():
+    compacted_text = (
+        "B.TechComputerScience CourseCode BCSE306L "
+        "SubmissionDeadline 07August2026 ContributionMatrix "
+        "LiteratureSurvey ResearchGaps EvaluationMetrics References"
+    )
+    assert document_warning_for_text(compacted_text) == DOCUMENT_WARNING
+
+
+def test_segmenter_keeps_compact_market_metric_bullet():
+    assert "TAM: $5B" in split_into_sentences("TAM: $5B")
