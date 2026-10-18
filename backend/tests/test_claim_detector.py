@@ -16,6 +16,8 @@ def test_keeps_investor_facing_business_claims():
     assert is_investor_claim(
         "We signed 18 paid pilots and expect to convert 60% into annual contracts."
     )
+    # Many pitch slides use short quantified bullets rather than full sentences.
+    assert is_investor_claim("TAM: $5B")
 
 
 def test_excludes_headings_references_and_background_text():
