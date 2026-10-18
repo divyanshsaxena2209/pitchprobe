@@ -371,9 +371,16 @@ def _targeted_investor_question(sentence: str, risk: str) -> str:
     """Generate one evidence-seeking VC question based on the claim's main topic."""
     text = sentence.lower()
 
-    # Put financial forecasts before traction: a forecast may mention conversion,
-    # users or customers, but the question should challenge the financial model.
-    if re.search(r"\b(revenue|forecast|financial plan|ebitda|runway|funding|raise|raising|valuation|arr|mrr|year three|fy\d{2})\b", text):
+    # Fundraising asks should focus on milestone/use-of-funds discipline rather
+    # than treating the ask as a revenue forecast.
+    if re.search(r"\b(?:raising|raise|funding ask|use of funds|capital ask)\b", text):
+        return (
+            "Which measurable milestones will this raise fund, how much runway do they buy, "
+            "and what evidence must be achieved before the next funding round?"
+        )
+
+    # Forecasts come before generic conversion/traction matches.
+    if re.search(r"\b(revenue|forecast|financial plan|ebitda|runway|valuation|arr|mrr|year three|fy\d{2})\b", text):
         return (
             "Which assumptions for sales volume, realised price, conversion, and gross "
             "margin drive this forecast, and what evidence validates them?"
@@ -385,16 +392,48 @@ def _targeted_investor_question(sentence: str, risk: str) -> str:
             "and adoption rate support this market estimate?"
         )
 
-    if re.search(r"\b(unit economics|cogs|gross margin|contribution|manufacturing cost|asp|fulfilment|fulfillment|warranty|cost per|unit cost|pricing|price)\b", text):
+    # A customer profile is not proof of traction; ask about pain and willingness to pay.
+    if re.search(r"\b(customer-facing teams|ideal customer profile|target customer|buyer persona|teams with .{0,30}weekly calls|buyers who need)\b", text):
+        return (
+            "What evidence confirms this target segment has a frequent, costly problem, "
+            "and how many qualified buyers have shown willingness to pay?"
+        )
+
+    # Subscription/tier pricing is different from hardware unit economics.
+    if re.search(r"(?:[₹$€£]\s?[\d,]+.{0,25}(?:/|\bper\b).{0,12}(?:month|seat)|\bper month\b|\bsubscription(?: attach rate)?\b|\bfair-use\b|\bunlimited meeting minutes\b|\bpricing tier\b)", text):
+        if re.search(r"\b(?:attach rate|retention|renewal|churn|cohort)\b", text):
+            return (
+                "What cohort data shows that subscribers activate, retain and renew at the "
+                "assumed rate, and how does usage vary by plan?"
+            )
+        return (
+            "What customer research or paid conversion data supports this price tier, and "
+            "do expected usage and service costs leave sustainable gross margin?"
+        )
+
+    if re.search(r"\b(unit economics|cogs|gross margin|contribution|manufacturing cost|asp|fulfilment|fulfillment|warranty|cost per|unit cost)\b", text):
         return (
             "Do these unit economics include discounts, returns, fulfilment, warranty, "
             "channel fees, and acquisition cost, and which supplier quotes support them?"
         )
 
-    if re.search(r"\b(interviews?|waitlist|sign-ups?|paid units|paid deposits|pilot|beta|traction|activation|retention|conversion|weekly active|customers?|users?)\b", text):
+    if re.search(r"\b(?:blended cac|customer acquisition cost|cost per acquisition|search and referral loops)\b", text):
         return (
-            "How many of these interested users or pilot participants converted to "
-            "paying customers, and what evidence supports that conversion rate?"
+            "What paid-channel and referral-cohort data supports this acquisition-cost target, "
+            "and does the payback period remain viable after churn and gross margin?"
+        )
+
+    if re.search(r"\b(interviews?|waitlist|sign-ups?|paid units|paid deposits|pilot|beta|traction|activation|retention|conversion|weekly active|active users|paying customers|customer count|customers acquired|users acquired)\b", text):
+        return (
+            "How many interested users or pilot participants converted to paying customers, "
+            "and what cohort evidence supports that conversion rate?"
+        )
+
+    # Team/role language is specific; don't match generic product copy such as "team templates".
+    if re.search(r"\b(founder|co-founder|founding team|leadership team|team lacks|team needs|hiring|hire|leader|capability gap|advisor|fractional operations|privacy counsel|former product lead|owns customer discovery|supply-chain leader|operations lead)\b", text):
+        return (
+            "Which critical capability is currently missing, who will own it, and what "
+            "is the hiring or partner timeline before the next milestone?"
         )
 
     if re.search(r"\b(competitors?|competition|incumbents?|moat|defensib|patent|competitive advantage|clone|copy)\b", text):
@@ -409,22 +448,16 @@ def _targeted_investor_question(sentence: str, risk: str) -> str:
             "did you compare against, and how many users or trials were measured?"
         )
 
-    if re.search(r"\b(privacy|consent|recording|security|retention|deletion|encrypted|regulatory|compliance|legal)\b", text):
+    if re.search(r"\b(app connectivity|meeting-platform integration|fully offline|universal integration|cloud ai|user consent|privacy|recording|security|deletion|encrypted|regulatory|compliance|legal)\b", text):
         return (
-            "What concrete controls or independent review demonstrate that this privacy "
-            "and compliance approach works in the intended deployment?"
+            "What happens when connectivity or consent is unavailable, and what tests verify "
+            "that the product respects user permissions across supported platforms?"
         )
 
     if re.search(r"\b(supplier|manufactur|production|inventory|tooling|yield|hardware|battery|fit-related|returns|supply.chain|acoustic testing)\b", text):
         return (
             "What pre-production test results, supplier commitments, or yield data must "
             "be met before you commit to tooling or inventory spend?"
-        )
-
-    if re.search(r"\b(team|founder|hire|hiring|leader|capability gap|advisor|operations|supply-chain)\b", text):
-        return (
-            "Which critical capability is currently missing, who will own it, and what "
-            "is the hiring or partner timeline before the next milestone?"
         )
 
     if re.search(r"\b(reduces?|saves?|improves?|faster|better|industry.leading|best.in.class|seamless|significant|unmatched|leading|strong|large|massive|revolutionary)\b", text):
