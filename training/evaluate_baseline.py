@@ -1,7 +1,7 @@
-"""Measure the current NLI + claim-screening baseline on human-labeled test rows.
+"""Measure the current NLI risk classifier on externally sourced test claims.
 
 Run from the repository root:
-python -m training.evaluate_baseline --data-csv training/data/claims.csv
+python -m training.evaluate_baseline --data-csv training/data/external_claims.csv
 """
 
 import argparse
@@ -13,7 +13,6 @@ from sklearn.metrics import classification_report, confusion_matrix
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
 from backend.analyzer import ModelManager, classify_sentence_nli
-from backend.claim_detector import is_investor_claim
 from training.dataset_utils import LABELS, read_and_validate_dataset
 
 BASE_MODEL = "cross-encoder/nli-deberta-v3-base"
@@ -21,7 +20,7 @@ BASE_MODEL = "cross-encoder/nli-deberta-v3-base"
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--data-csv", default="training/data/claims.csv")
+    parser.add_argument("--data-csv", default="training/data/external_claims.csv")
     parser.add_argument("--output-dir", default="training/artifacts/baseline")
     parser.add_argument("--model-name", default=BASE_MODEL)
     args = parser.parse_args()
@@ -49,12 +48,11 @@ def main() -> None:
 
     for index, row in enumerate(test_rows, start=1):
         text = row["text"]
-        if not is_investor_claim(text, manager):
-            prediction = "NON_CLAIM"
-            score = 1.0
-        else:
-            risk, score = classify_sentence_nli(text, manager)
-            prediction = risk.upper()
+        # This evaluator measures risk assignment on dataset rows already
+        # annotated as financial claims; claim/non-claim screening is evaluated
+        # separately and must not be conflated with risk labels.
+        risk, score = classify_sentence_nli(text, manager)
+        prediction = risk.upper()
         references.append(row["label"])
         predictions.append(prediction)
         output_rows.append(
@@ -95,7 +93,7 @@ def main() -> None:
         writer.writeheader()
         writer.writerows(output_rows)
 
-    print("\nBaseline results on held-out test decks:")
+    print("\nBaseline results on held-out external test claims:")
     print(
         classification_report(
             references,
