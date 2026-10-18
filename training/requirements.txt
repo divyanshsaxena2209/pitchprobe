@@ -1,0 +1,7 @@
+# Install in a dedicated Colab/runtime environment. PyTorch is provided by Colab.
+transformers>=4.48,<5
+datasets>=3.2,<4
+accelerate>=1.1,<2
+scikit-learn>=1.5,<2
+pandas>=2.2,<3
+sentencepiece>=0.2,<1
