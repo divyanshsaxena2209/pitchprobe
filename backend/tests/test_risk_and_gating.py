@@ -1,3 +1,7 @@
+from types import SimpleNamespace
+
+import torch
+
 from backend.analyzer import analyze_sentences, classify_sentence_nli, generate_objection_question, ModelManager
 
 
@@ -69,3 +73,50 @@ def test_analyze_sentences_integration():
         else:
             assert item["question"] is not None, f"Expected counter-question for {item['risk']} claim"
             assert item["question"].endswith("?")
+
+
+def test_nli_risk_score_uses_raw_entailment_logits(monkeypatch):
+    manager = ModelManager.get_instance()
+
+    class FakeFeatures(dict):
+        def to(self, _device):
+            return self
+
+    class FakeTokenizer:
+        def __call__(self, *_args, **_kwargs):
+            return FakeFeatures({"input_ids": torch.ones((3, 2), dtype=torch.long)})
+
+    class FakeModel:
+        config = SimpleNamespace(
+            id2label={
+                0: "contradiction",
+                1: "entailment",
+                2: "neutral",
+            }
+        )
+
+        def __call__(self, **_kwargs):
+            # Entailment logits differ only slightly. Normalizing already
+            # softmaxed per-row probabilities would compress these scores
+            # close to 0.333; correct cross-hypothesis softmax is more distinct.
+            return SimpleNamespace(
+                logits=torch.tensor(
+                    [
+                        [0.0, 0.3, 0.0],
+                        [0.0, 0.2, 0.0],
+                        [0.0, 0.1, 0.0],
+                    ]
+                )
+            )
+
+    monkeypatch.setattr(manager, "classifier_loaded", True)
+    monkeypatch.setattr(manager, "classifier_tokenizer", FakeTokenizer())
+    monkeypatch.setattr(manager, "classifier_model", FakeModel())
+    monkeypatch.setattr(manager, "device", "cpu")
+
+    risk, score = classify_sentence_nli("Example investor-facing claim.", manager)
+    expected = torch.softmax(torch.tensor([0.3, 0.2, 0.1]), dim=0)[0].item()
+
+    assert risk == "Low"
+    assert abs(score - round(expected, 4)) < 1e-4
+    assert score > 0.35
