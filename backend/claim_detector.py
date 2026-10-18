@@ -114,6 +114,10 @@ NON_CLAIM_PATTERNS = [
     r"^\s*(?:source url:|confidentiality note$|for discussion and analytical testing only|illustrative assumptions$|market reference$|proposed advisor profile$|use of funds$|what the signal does / does not say$|positive$|still unproven$|earable$|phone app$|ai services$|work tools$|on device$|phone / cloud$)",
     r"^\s*grand view research,",
     r"\b(?:all company, founder, traction and forecast data are illustrative|all figures below are fictional planning assumptions)\b",
+    r"\ball\b.{0,180}\b(?:figures|data|assumptions)\s+(?:are|were)\s+(?:invented|fictional|illustrative)\b",
+    r"^\s*no\b.{0,180}\b(?:is|are|was|were)\s+claimed\b",
+    r"^\s*(?:buyers who need\b|pilot if\b|deposits target\b|month runway target\b)",
+    r"\bthis is a fictional scenario\b",
     # Section headings and document furniture.
     r"^\s*(?:references?|bibliography|appendix|table of contents)\s*:?\s*$",
     r"^\s*(?:table|figure)\s+\d+\b",
