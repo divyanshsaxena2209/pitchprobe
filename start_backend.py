@@ -149,6 +149,7 @@ def main() -> int:
     env = os.environ.copy()
     port = PORT_START
     attempts = 0
+    backend_ever_healthy = False
 
     while True:
         attempts += 1
@@ -165,6 +166,16 @@ def main() -> int:
             process = subprocess.Popen(command, cwd=ROOT, env=env)
         except OSError as exc:
             print(f"[WARN] Could not launch backend process: {exc}", flush=True)
+            if backend_ever_healthy:
+                # Once Next.js has been pointed at a confirmed backend port,
+                # keep that port stable across runtime crashes. Otherwise Next
+                # may keep proxying to the old URL after BACKEND_URL is changed.
+                print(
+                    f"[WARN] Retrying the previously healthy port {port} in 2s.",
+                    flush=True,
+                )
+                time.sleep(2)
+                continue
             port += 1
             if port > PORT_MAX:
                 port = PORT_START
@@ -183,6 +194,7 @@ def main() -> int:
             time.sleep(HEALTH_CHECK_INTERVAL_SECONDS)
 
         if ready:
+            backend_ever_healthy = True
             update_backend_url(port)
             print(f"\n[SUCCESS] PitchProbe backend is healthy at http://127.0.0.1:{port}", flush=True)
             print(f"[INFO] Updated BACKEND_URL in {ROOT / '.env.local'}", flush=True)
@@ -200,8 +212,7 @@ def main() -> int:
                 return 0
 
             print(
-                f"[WARN] Backend exited with code {exit_code}. "
-                "Trying the next port.",
+                f"[WARN] Backend exited with code {exit_code}.",
                 flush=True,
             )
         else:
@@ -214,6 +225,15 @@ def main() -> int:
 
             print(f"[WARN] Port {port} failed: {reason}", flush=True)
             print("[INFO] Incrementing port and retrying.", flush=True)
+
+        if backend_ever_healthy:
+            print(
+                f"[WARN] Restarting on the same port {port} to keep "
+                "BACKEND_URL stable. Press Ctrl+C to stop.",
+                flush=True,
+            )
+            time.sleep(2)
+            continue
 
         port += 1
         if port > PORT_MAX:
