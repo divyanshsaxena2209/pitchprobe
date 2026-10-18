@@ -28,6 +28,7 @@ export interface PipelineInfo {
   generator: string;
   mode: string;
   note: string;
+  document_warning?: string | null;
 }
 
 export interface AnalysisResult {
@@ -375,7 +376,7 @@ export default function UploadArea({ onResultsChange }: UploadAreaProps) {
                   {analysisResult.filename}
                 </h2>
                 <p className="text-xs text-[#73746F] mt-1">
-                  Extracted and evaluated {analysisResult.total_sentences} claims via {analysisResult.pipeline_info.mode} mode
+                  Detected and risk-scored {analysisResult.total_sentences} investor-facing claims via {analysisResult.pipeline_info.mode} mode
                 </p>
               </div>
 
@@ -484,7 +485,12 @@ export default function UploadArea({ onResultsChange }: UploadAreaProps) {
 
           {/* Sentence Claims List */}
           <div className="space-y-4">
-            {filteredSentences.length === 0 ? (
+            {analysisResult.total_sentences === 0 ? (
+              <div className="rounded-xl bg-white border border-[#E6E4DE] p-8 text-center text-[#73746F] text-sm leading-relaxed">
+                {analysisResult.pipeline_info.document_warning ??
+                  "No investor-facing claims were detected. Upload a startup pitch deck with product, market, traction, customer, or financial assertions."}
+              </div>
+            ) : filteredSentences.length === 0 ? (
               <div className="rounded-xl bg-white border border-[#E6E4DE] p-8 text-center text-[#73746F] text-sm">
                 No claims match the selected filter.
               </div>
