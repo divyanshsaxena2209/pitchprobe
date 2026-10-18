@@ -277,15 +277,16 @@ def classify_sentence_nli(
                     f"Cannot identify entailment label in {id2label}"
                 )
 
-            # Each sentence/hypothesis pair gets one entailment score.
-            entailment_scores = torch.softmax(logits, dim=-1)[
-                :, entailment_ids[0]
-            ]
-
-            # Compare the three hypotheses and normalise for display.
+            # The NLI model emits raw contradiction / entailment / neutral
+            # logits for each candidate risk hypothesis. For mutually exclusive
+            # candidate labels, normalize the RAW entailment logits across the
+            # hypotheses. Softmaxing each NLI row first and then applying a
+            # second softmax compresses close cases toward 1/3 (as seen in the
+            # test-deck output).
+            entailment_logits = logits[:, entailment_ids[0]]
             probabilities = torch.softmax(
-                entailment_scores, dim=0
-            ).cpu().tolist()
+                entailment_logits, dim=0
+            ).detach().cpu().tolist()
 
             best_idx = max(
                 range(len(probabilities)),
