@@ -178,3 +178,18 @@ def test_excludes_incomplete_fragments_and_pitch_deck_footer_noise():
         "EARABLE PHONE APP AI SERVICES WORK TOOLS 6-mic array ANC DSP VAD "
         "touch controls Bluetooth audio handoff speech-to-text diarisation summary"
     )
+
+
+
+def test_excludes_fictional_disclaimers_orphaned_metrics_and_nonclaims():
+    assert not is_investor_claim(
+        "All company, founder, waitlist, interview, pricing, unit-cost, revenue, "
+        "EBITDA and adoption figures are invented for this fictional scenario."
+    )
+    assert not is_investor_claim(
+        "No patent, regulatory approval, customer contract, revenue, paid shipment "
+        "or advisor relationship is claimed."
+    )
+    assert not is_investor_claim(",000 paid pre-orders / refundable")
+    assert not is_investor_claim("pilot if retention supports it.")
+    assert not is_investor_claim("buyers who need fully offline AI or universal integrations.")
