@@ -213,7 +213,8 @@ def is_obvious_non_claim(text: str) -> bool:
         bool(re.search(pattern, candidate, re.IGNORECASE))
         for pattern in diagram_markers
     )
-    if diagram_hits >= 3 and not ASSERTION_TERMS.search(candidate) and not has_metric:
+    has_assertive_metric = bool(has_metric and ASSERTION_TERMS.search(candidate))
+    if diagram_hits >= 3 and not has_assertive_metric:
         return True
     if re.search(r"\b(?:sonora\s*/\s*seed|oct\s+2026)\b", candidate, re.IGNORECASE) and (
         "illustrative" in candidate.lower() or "not an offer" in candidate.lower()
