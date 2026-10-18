@@ -373,7 +373,7 @@ def _targeted_investor_question(sentence: str, risk: str) -> str:
 
     # Put financial forecasts before traction: a forecast may mention conversion,
     # users or customers, but the question should challenge the financial model.
-    if re.search(r"\b(revenue|forecast|financial plan|ebitda|runway|crore|million|billion|funding|raise|raising|valuation|year three|fy\d{2})\b", text):
+    if re.search(r"\b(revenue|forecast|financial plan|ebitda|runway|funding|raise|raising|valuation|arr|mrr|year three|fy\d{2})\b", text):
         return (
             "Which assumptions for sales volume, realised price, conversion, and gross "
             "margin drive this forecast, and what evidence validates them?"
