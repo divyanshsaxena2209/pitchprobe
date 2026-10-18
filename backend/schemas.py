@@ -25,6 +25,7 @@ class PipelineInfo(BaseModel):
     generator: str
     mode: str
     note: str
+    document_warning: Optional[str] = None
 
 
 class AnalyzeResponse(BaseModel):
