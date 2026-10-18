@@ -5,7 +5,11 @@ import threading
 from typing import Dict, List, Optional, Tuple
 import torch
 
-from backend.claim_detector import document_warning_for_text, is_investor_claim
+from backend.claim_detector import (
+    document_warning_for_text,
+    is_investor_claim,
+    normalize_claim_text,
+)
 
 # Suppress Hugging Face symlink warnings on Windows
 os.environ["HF_HUB_DISABLE_SYMLINKS_WARNING"] = "1"
@@ -269,11 +273,14 @@ def analyze_sentences(
     manager = ModelManager.get_instance()
     summary_counts = {"low_risk": 0, "moderate_risk": 0, "high_risk": 0}
 
-    mode = (
-        "transformer_local"
-        if (manager.classifier_loaded and manager.generator_loaded)
-        else "calibrated_domain_heuristics"
-    )
+    if manager.classifier_loaded and manager.generator_loaded:
+        mode = "transformer_classifier+transformer_generator"
+    elif manager.classifier_loaded:
+        mode = "transformer_classifier+heuristic_generator"
+    elif manager.generator_loaded:
+        mode = "heuristic_classifier+transformer_generator"
+    else:
+        mode = "calibrated_domain_heuristics"
     pipeline_info = {
         "classifier": manager.classifier_name,
         "generator": manager.generator_name,
@@ -299,7 +306,7 @@ def analyze_sentences(
     # Stage 0: filter non-claims. The risk classifier must never assign a risk
     # tier simply because a sentence exists in the PDF.
     claims = [
-        re.sub(r"\s+", " ", sentence).strip()
+        normalize_claim_text(sentence)
         for sentence in sentences
         if is_investor_claim(sentence, manager)
     ]
