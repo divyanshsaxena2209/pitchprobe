@@ -1,5 +1,15 @@
 import io
+import os
+
 import pytest
+
+# On this Windows host, asyncio's default ProactorEventLoop cannot create its
+# socketpair because the OS denies the ephemeral loopback listen. Reuse the
+# project's existing fixed-port workaround for the test process only.
+if os.name == "nt":
+    from start_backend import install_windows_socketpair_workaround
+
+    install_windows_socketpair_workaround()
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 
