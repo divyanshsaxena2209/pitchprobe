@@ -1,111 +1,116 @@
-# PitchProbe classifier fine-tuning (Phase 1)
+# PitchProbe fine-tuning using public external datasets
 
-This folder contains a **baseline evaluation** and a supervised fine-tuning pipeline for the existing DeBERTa checkpoint. It does not automatically generate labels or train on the model's own predictions.
+This workflow uses public external datasets only. It never reads `sonora_seed_pitch_deck.pdf`, PitchProbe output, or any files you upload locally. The locally generated CSV and trained checkpoint are ignored by Git.
 
-## What we are fine-tuning
+## What is being fine-tuned
 
 Base checkpoint: `cross-encoder/nli-deberta-v3-base`.
 
-The training script reuses the pretrained DeBERTa encoder and replaces the original 3-way NLI head with a 4-way classifier:
+The supervised risk head has three labels:
 
-- `NON_CLAIM`: headings, references, administrative text, and background that is not an investor-facing assertion.
-- `LOW`: an investor-facing assertion with specific supporting evidence shown in the deck. This does **not** mean independently verified as true.
-- `MODERATE`: a relevant claim that is vague, underspecified, or missing important validation.
-- `HIGH`: a highly exaggerated, absolute, implausible, or strongly unsupported claim.
+- `LOW`: claims presented as specific, sourced historical facts.
+- `MODERATE`: broad market observations, attributed analysis, or forward-looking statements that require qualification or validation.
+- `HIGH`: speculative rumours and unsupported/hype-oriented assertions.
 
-These labels are judgment-based. Create written annotation rules and apply them consistently. Don't label every numerical statement as LOW: unsupported projections can still be HIGH. Mark uncertainty for human review instead of guessing.
+Claim/non-claim screening remains a separate step in `backend/claim_detector.py`. This is deliberate: the external financial-claim dataset labels types of evidence, not whether each line is a startup claim. We do not invent a `NON_CLAIM` class label for a dataset that contains only claims.
 
-## Step 1 — Build the labeled dataset
+**Important limitation:** these source categories are only proxies for PitchProbe's risk labels. The mapping is useful to establish a reproducible experiment, but it is not ground-truth startup-pitch risk annotation. The resulting model must not be described as validated for pitch decks until it has been evaluated on a separate, appropriately licensed external startup/pitch dataset with risk labels.
 
-Copy `training/data/claims_template.csv` to `training/data/claims.csv` and add reviewed rows. Required columns:
+## Primary dataset: FinClaimRadar
 
-| Column | Purpose |
-|---|---|
-| `deck_id` | Stable ID for the source deck, e.g. `sonora_01`; do not use a company name if confidentiality matters. |
-| `text` | One claim-sized sentence or short slide bullet. Preserve relevant numbers and qualifiers. |
-| `label` | Exactly one of `NON_CLAIM`, `LOW`, `MODERATE`, `HIGH`. |
-| `split` | `train`, `validation`, or `test`. Every row from the same deck must stay in the same split. |
-| `notes` | Optional rationale or evidence cited from the deck. |
+Source: [FinClaimRadar on Hugging Face](https://huggingface.co/datasets/ImBinarry/FinClaimRadar-Financial-Reasoning).
 
-For an initial pilot, aim for roughly 500–1,000 reviewed examples across multiple decks, reasonably balanced across all four labels. This is a starting target, not a guarantee of good results. Include difficult examples from different industries and deck styles. Avoid copying near-identical sentences into different splits.
+The dataset card lists 630 English financial claims with six evidentiary categories and a `CC-BY-SA-4.0` licence. The claims were model-generated initially and then refined/reviewed by the dataset author. It is a small proof-of-concept, not a large or definitive pitch-deck benchmark.
 
-**Keep decks separated by split.** For example, use some complete decks for training, different complete decks for validation, and different unseen decks for testing. The validation/test split must not contain slides or paraphrases from training decks.
+The preparation script maps the six source categories as follows:
 
-Do not commit private pitch decks, confidential claim text, or `claims.csv` to GitHub. The raw deck should stay on your own device unless you have permission to share it. The shared repository contains only the empty template.
+| FinClaimRadar source category | PitchProbe training label | Rationale |
+|---|---|---|
+| Reported Factual Data | `LOW` | Specific past result tied to a stated, verifiable source |
+| General Market Observation/Trend Description | `MODERATE` | Broad/non-specific trend statements may need a precise basis |
+| Attributed Expert Opinion/Analysis | `MODERATE` | Interpretation or forecast rather than direct historical measurement |
+| Company Forward-Looking Statement | `MODERATE` | Targets/projections need assumptions and evidence |
+| Speculative Statement/Rumor | `HIGH` | Unconfirmed information |
+| Unsupported Assertion/Hype | `HIGH` | Unsupported or exaggerated claim |
 
-## Step 2 — Install training dependencies
+This mapping is intentionally explicit and imperfect. Never interpret it as the original dataset's official label mapping. The generated CSV records the original category in `notes` so mistakes can be audited.
 
-Use a GPU runtime such as Google Colab when available. Colab GPU access and session limits vary; a GPU is recommended, not guaranteed.
+## Run the external-only training workflow
 
-From a fresh Colab notebook, mount Google Drive or upload the repository and dataset. Then install the listed dependencies in a dedicated runtime:
+Use Google Colab with a GPU if available; a GPU is recommended, not guaranteed. Start from the repository root in the Colab runtime, or upload the repository ZIP to the runtime.
+
+### 1. Install dependencies
 
 ```bash
 pip install -r training/requirements.txt
 ```
 
-Check the GPU:
-
-```python
-import torch
-print("CUDA available:", torch.cuda.is_available())
-if torch.cuda.is_available():
-    print(torch.cuda.get_device_name(0))
-```
-
-If you are running from the repository root, these commands validate the data and measure the current model before training:
+### 2. Download and split the public dataset
 
 ```bash
-python -m training.dataset_utils
-python -m training.evaluate_baseline --data-csv training/data/claims.csv
+python -m training.prepare_finclaimradar --output-csv training/data/external_claims.csv
 ```
 
-The baseline script loads the current NLI checkpoint, applies the current claim screen and risk classifier, and writes per-class precision/recall/F1, confusion matrix, and predictions under `training/artifacts/baseline/`.
+This downloads FinClaimRadar from Hugging Face, maps its categories to `LOW`/`MODERATE`/`HIGH`, then creates deterministic train/validation/test splits. Where `counterfactual_group_id` is available, related examples are kept in the same split. The script validates the generated data and reports class counts.
 
-## Step 3 — Fine-tune DeBERTa
+### 3. Measure the original classifier first
 
 ```bash
-python -m training.train_classifier --data-csv training/data/claims.csv
+python -m training.evaluate_baseline --data-csv training/data/external_claims.csv
 ```
 
-Default output: `training/artifacts/pitchprobe-deberta-claims/`.
+The evaluator runs the original NLI risk classifier directly on the held-out external claims. It does not apply the separate claim/non-claim screen to these rows; otherwise the baseline would mix two tasks and treat a skipped claim as a risk label.
 
-The trainer:
-- Uses the training split for gradient updates only.
-- Uses validation macro-F1 to select/checkpoint the model and early-stop.
-- Evaluates the final best checkpoint once against the separate test split.
-- Saves model/tokenizer and test metrics, per-class report, and confusion matrix.
+### 4. Fine-tune DeBERTa
 
-Check macro-F1 and the per-class report, especially recall for HIGH and precision for NON_CLAIM. Don't deploy if the model improves aggregate F1 but becomes substantially worse at detecting high-risk claims.
+```bash
+python -m training.train_classifier --data-csv training/data/external_claims.csv
+```
 
-## Step 4 — Compare before deployment
+Default checkpoint output: `training/artifacts/pitchprobe-deberta-claims/`.
+
+The training script uses the training split for updates, the validation split for macro-F1-based checkpoint selection/early stopping, and the test split for the final report. It saves the tokenizer, model, per-class precision/recall/F1, confusion matrix, and predictions.
+
+### 5. Decide whether the experiment helped
 
 Compare:
+
 - `training/artifacts/baseline/classification_report.json`
 - `training/artifacts/pitchprobe-deberta-claims/classification_report.json`
 
-These comparisons are meaningful only if both evaluate the exact same held-out test rows. Review misclassified examples manually. Keep the original NLI model as a fallback until the fine-tuned checkpoint shows a useful improvement on unseen decks.
+Both reports must be based on the same held-out external examples. Inspect per-class precision/recall and misclassifications. Because the labels are mapped proxies and the dataset is small, good numbers on this split are **not** proof that unseen startup pitch decks will be analysed accurately. Do not deploy a worse or unvalidated checkpoint just because training completed.
 
-## Phase 2 — Not included yet
+## Other public datasets and what they can (and cannot) do
 
-Fine-tuning FLAN-T5 for investor-question generation should happen only after the classifier baseline and annotation set are reliable. It needs a separate curated dataset of claim + relevant context + risk label + human-approved investor question. Do not train on unreviewed generic questions produced by the current model.
+- [ClaimBuster](https://huggingface.co/datasets/Nithiwat/claimbuster) contains 23,533 statements from US presidential debates labelled for check-worthiness. It may be useful for a separate claim-screening experiment, but its political-debate domain is different from startup decks; do not map its check-worthiness labels directly to `LOW`/`MODERATE`/`HIGH`.
+- [FinQA](https://huggingface.co/datasets/ibm-research/finqa) contains around 8,000 financial question-answer pairs based on financial reports and is listed as `CC-BY-4.0`. It can help with finance-specific question/answer behaviour, but its questions are numerical reasoning questions, not venture-capital objections.
+- [TAT-QA](https://github.com/NExTplusplus/TAT-QA) contains 16,552 questions over financial-report text and tables. It is another financial QA source, not a dataset of investor counter-questions.
+- [FEVER](https://huggingface.co/datasets/EleutherAI/fever) contains claims labelled Supported, Refuted, or NotEnoughInfo. It supports evidence-verification experiments, but Wikipedia claim veracity is not the same task as judging a pitch's vagueness or hype.
 
+Before using any additional source, check its own dataset card and licence, cite the source, and do not combine labels that mean different things.
 
-## Step 5 — Load the fine-tuned checkpoint locally (after evaluation)
+## Question-generator fine-tuning (separate phase)
 
-Only do this after you review the held-out test report and decide the fine-tuned classifier is better than the baseline.
+The base `google/flan-t5-small` produced generic questions in the observed result, so the app now uses targeted question rules by default. FLAN-T5 is opt-in with `PITCHPROBE_USE_FLAN_T5=1` for experiments.
 
-In the PowerShell terminal used to launch the backend, set the local checkpoint path before starting the launcher:
+The public datasets above do not directly supply claim → good investor-objection pairs. FinQA/TAT-QA are useful auxiliary finance-question datasets but do not teach the model to challenge a pitch's weakest assumption. For true generator fine-tuning using external data only, the next step is to build a separate dataset from public financial claims plus reviewed, evidence-seeking questions derived from those claims. Keep each source's licence and attribution with the derived records; do not use personal uploads or generated PitchProbe answers as targets.
+
+## Load a fine-tuned classifier locally (only after evaluation)
+
+After training and reviewing the held-out report, copy the checkpoint folder to your local PitchProbe project. In the backend PowerShell terminal:
 
 ```powershell
 $env:PITCHPROBE_CLASSIFIER_PATH = "C:\Users\divya\OneDrive\Desktop\pitchprobe\training\artifacts\pitchprobe-deberta-claims"
 python .\start_backend.py
 ```
 
-The backend will load this checkpoint only if its config contains all four expected labels. If loading fails, it logs the issue and falls back to the original NLI model. The environment variable must be present in the terminal that starts the backend. It is not committed to Git.
+The backend expects a three-label classifier config containing `LOW`, `MODERATE`, and `HIGH`. It keeps the heuristic claim screen separate and uses the fine-tuned model only for risk assignment. If the checkpoint fails to load, the backend logs the problem and falls back to the original NLI model.
 
-To return to the original classifier in the same PowerShell session:
+To use the original classifier again:
 
 ```powershell
 Remove-Item Env:PITCHPROBE_CLASSIFIER_PATH -ErrorAction SilentlyContinue
 python .\start_backend.py
 ```
+
+Remove or change the environment variable in the same terminal before restarting the backend.
