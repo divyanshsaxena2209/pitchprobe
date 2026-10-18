@@ -435,6 +435,7 @@ export default function UploadArea({ onResultsChange }: UploadAreaProps) {
           </div>
 
           {/* Filter Pills */}
+          {analysisResult.total_sentences > 0 && (
           <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs">
             <span className="text-[#73746F] font-medium mr-1">Filter:</span>
             <button
@@ -482,6 +483,7 @@ export default function UploadArea({ onResultsChange }: UploadAreaProps) {
               Low Risk ({analysisResult.summary.low_risk})
             </button>
           </div>
+          )}
 
           {/* Sentence Claims List */}
           <div className="space-y-4">
