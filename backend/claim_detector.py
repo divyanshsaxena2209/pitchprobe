@@ -81,7 +81,7 @@ BUSINESS_TERMS = re.compile(
     r"small businesses|SMBs?|SMEs?|enterprises?|clinics?|hospitals?|"
     r"merchants?|teams?|healthcare|logistics|retail|manufacturers?|"
     r"inventory|invoices?|compliance|pain points?|consumers?|patients?|"
-    r"ROI|GMV|orders?|bookings?|active accounts?)\b",
+    r"ROI|GMV|orders?|bookings?|active accounts?|interviews?|deposits?|shipped|sign-ups?)\b",
     re.IGNORECASE,
 )
 
@@ -191,6 +191,29 @@ def is_obvious_non_claim(text: str) -> bool:
     if candidate.count("→") >= 2 and not has_metric:
         return True
     if re.search(r"\b(?:l e\d|\w+\(cid:\d+)", candidate, re.IGNORECASE):
+        return True
+
+
+    # Extracted architecture diagrams often become one label-heavy fragment.
+    diagram_markers = [
+        r"\bearable\b",
+        r"\bphone app\b",
+        r"\bai services\b",
+        r"\bwork tools\b",
+        r"\bon device\b",
+        r"\bphone\s*/\s*cloud\b",
+        r"\bmic array\b",
+        r"\bANC\s+DSP\b",
+        r"\bBluetooth LE\b",
+        r"\bsession control\b",
+        r"\bspeech-to-text\b",
+        r"\bdiarisation\b",
+    ]
+    diagram_hits = sum(
+        bool(re.search(pattern, candidate, re.IGNORECASE))
+        for pattern in diagram_markers
+    )
+    if diagram_hits >= 3 and not ASSERTION_TERMS.search(candidate) and not has_metric:
         return True
     if re.search(r"\b(?:sonora\s*/\s*seed|oct\s+2026)\b", candidate, re.IGNORECASE) and (
         "illustrative" in candidate.lower() or "not an offer" in candidate.lower()
