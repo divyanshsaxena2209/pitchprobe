@@ -72,8 +72,8 @@ class ModelManager:
         self.generator_tokenizer = None
         self.generator_model = None
 
-        # A fine-tuned four-label checkpoint is optional. Without this
-        # environment variable the original NLI classifier remains active.
+        # A fine-tuned three-risk-label checkpoint is optional. Claim screening
+        # remains separate; without this path the original NLI classifier is active.
         self.finetuned_classifier_path = os.environ.get("PITCHPROBE_CLASSIFIER_PATH", "").strip()
         self.classifier_mode = "fine_tuned" if self.finetuned_classifier_path else "nli"
         self.classifier_name = (
@@ -114,7 +114,7 @@ class ModelManager:
                     if self.classifier_mode == "fine_tuned":
                         try:
                             logger.info(
-                                "Loading fine-tuned four-label classifier from %s...",
+                                "Loading fine-tuned three-label risk classifier from %s...",
                                 self.classifier_name,
                             )
                             tok = AutoTokenizer.from_pretrained(
@@ -129,11 +129,11 @@ class ModelManager:
                                 str(label).strip().upper().replace("-", "_").replace(" ", "_")
                                 for label in model.config.id2label.values()
                             }
-                            required_labels = {"NON_CLAIM", "LOW", "MODERATE", "HIGH"}
+                            required_labels = {"LOW", "MODERATE", "HIGH"}
                             if not required_labels.issubset(normalized_labels):
                                 raise ValueError(
-                                    "Fine-tuned checkpoint must define labels "
-                                    "NON_CLAIM, LOW, MODERATE, and HIGH; found "
+                                    "Fine-tuned risk checkpoint must define labels "
+                                    "LOW, MODERATE, and HIGH; found "
                                     f"{sorted(normalized_labels)}"
                                 )
                             model.eval()
@@ -218,7 +218,7 @@ class ModelManager:
 def classify_sentence_finetuned(
     sentence: str, manager: ModelManager
 ) -> Tuple[str, float]:
-    """Predict NON_CLAIM/LOW/MODERATE/HIGH with the fine-tuned model."""
+    """Predict LOW/MODERATE/HIGH risk for a screened claim."""
     if not (
         manager.classifier_loaded
         and manager.classifier_model is not None
@@ -243,10 +243,10 @@ def classify_sentence_finetuned(
     }
     best_idx = int(torch.argmax(probabilities).item())
     label = id2label.get(best_idx, "")
-    if label not in {"NON_CLAIM", "LOW", "MODERATE", "HIGH"}:
+    if label not in {"LOW", "MODERATE", "HIGH"}:
         raise ValueError(
-            "Unexpected fine-tuned label mapping; expected NON_CLAIM/LOW/"
-            f"MODERATE/HIGH, found {id2label}"
+            "Unexpected fine-tuned label mapping; expected LOW/MODERATE/HIGH, "
+            f"found {id2label}"
         )
     return label, round(float(probabilities[best_idx].item()), 4)
 
@@ -535,16 +535,15 @@ def analyze_sentences(
     candidates: List[Tuple[str, str, float]] = []
 
     if manager.classifier_loaded and manager.classifier_mode == "fine_tuned":
-        # The fine-tuned head predicts all four labels directly, including
-        # NON_CLAIM; don't run the older heuristic/NLI claim filter in this mode.
+        # Public financial-claim datasets provide risk/evidence labels, not a
+        # reliable "not a startup claim" class. Keep claim screening separate,
+        # then let the fine-tuned model assign one of the three risk labels.
         risk_for_label = {"LOW": "Low", "MODERATE": "Moderate", "HIGH": "High"}
         for sentence in sentences:
             text = normalize_claim_text(sentence)
-            if not text:
+            if not text or not is_investor_claim(text, manager=None):
                 continue
             label, score = classify_sentence_finetuned(text, manager)
-            if label == "NON_CLAIM":
-                continue
             candidates.append((text, risk_for_label[label], score))
     else:
         # Preserve current behavior until a fine-tuned checkpoint is configured.
