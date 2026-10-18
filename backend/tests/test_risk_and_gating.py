@@ -165,3 +165,43 @@ def test_flan_t5_is_opt_in_by_default(monkeypatch):
     monkeypatch.delenv("PITCHPROBE_USE_FLAN_T5", raising=False)
     manager = ModelManager()
     assert manager.use_flan_t5 is False
+
+
+
+def test_question_routing_distinguishes_icp_pricing_and_team():
+    icp = _targeted_investor_question(
+        "customer-facing teams with 8+ hours of weekly calls.",
+        "Moderate",
+    )
+    assert "target segment" in icp
+    assert "willingness to pay" in icp
+
+    pricing = _targeted_investor_question(
+        "₹499 / month Unlimited meeting minutes within fair-use limits, richer summaries and team templates.",
+        "Moderate",
+    )
+    assert "price tier" in pricing
+    assert "service costs" in pricing
+
+    hiring = _targeted_investor_question(
+        "We need a fractional operations / supply-chain leader, privacy counsel and independent acoustic testing.",
+        "Moderate",
+    )
+    assert "capability" in hiring
+    assert "hiring" in hiring
+
+
+def test_fundraise_and_connectivity_claims_get_relevant_questions():
+    fundraise = _targeted_investor_question(
+        "Raising 8 crore to reach a validated, shippable product.",
+        "High",
+    )
+    assert "milestones" in fundraise
+    assert "runway" in fundraise
+
+    connectivity = _targeted_investor_question(
+        "Cloud AI is optional for audio playback; meeting intelligence requires app connectivity and user consent.",
+        "Moderate",
+    )
+    assert "connectivity" in connectivity
+    assert "consent" in connectivity
