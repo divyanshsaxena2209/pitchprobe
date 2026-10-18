@@ -1,7 +1,14 @@
 from io import StringIO
 from threading import Event
 
-from start_backend import PORT_MAX, PORT_START, next_candidate_port, relay_child_output
+import start_backend
+from start_backend import (
+    PORT_MAX,
+    PORT_START,
+    next_candidate_port,
+    relay_child_output,
+    update_backend_url,
+)
 
 
 def test_failed_candidate_always_advances_to_next_port():
@@ -33,3 +40,24 @@ def test_child_listener_marker_must_match_attempted_port(capsys):
         own_port_event,
     )
     assert own_port_event.is_set()
+
+
+
+def test_update_backend_url_sets_server_and_browser_urls(monkeypatch, tmp_path):
+    env_path = tmp_path / ".env.local"
+    env_path.write_text(
+        "ANOTHER_SETTING=preserve-me\n"
+        "BACKEND_URL=http://127.0.0.1:8000\n"
+        "NEXT_PUBLIC_BACKEND_URL=http://127.0.0.1:8000\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(start_backend, "ROOT", tmp_path)
+
+    update_backend_url(8020)
+
+    lines = env_path.read_text(encoding="utf-8").splitlines()
+    assert "ANOTHER_SETTING=preserve-me" in lines
+    assert "BACKEND_URL=http://127.0.0.1:8020" in lines
+    assert "NEXT_PUBLIC_BACKEND_URL=http://127.0.0.1:8020" in lines
+    assert sum(line.startswith("BACKEND_URL=") for line in lines) == 1
+    assert sum(line.startswith("NEXT_PUBLIC_BACKEND_URL=") for line in lines) == 1
