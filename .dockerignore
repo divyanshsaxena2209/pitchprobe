@@ -1,0 +1,13 @@
+.git
+.github
+node_modules
+.next
+out
+coverage
+.venv
+venv
+__pycache__
+*.py[cod]
+.pytest_cache
+.env*
+.DS_Store
