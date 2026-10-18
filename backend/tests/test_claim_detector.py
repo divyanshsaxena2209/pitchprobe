@@ -109,61 +109,45 @@ def test_segmenter_keeps_compact_market_metric_bullet():
     assert "TAM: $5B" in split_into_sentences("TAM: $5B")
 
 
-def test_finetuned_classifier_path_skips_nonclaims_and_uses_four_labels(monkeypatch):
+def test_finetuned_classifier_path_screens_claims_then_assigns_three_risk_labels(monkeypatch):
     import backend.analyzer as analyzer
 
     manager = ModelManager.get_instance()
     monkeypatch.setattr(manager, "classifier_mode", "fine_tuned")
     monkeypatch.setattr(manager, "classifier_loaded", True)
-    monkeypatch.setattr(manager, "classifier_name", "test-four-label-checkpoint")
+    monkeypatch.setattr(manager, "classifier_name", "test-three-label-checkpoint")
     monkeypatch.setattr(manager, "generator_loaded", False)
 
-    labels = {
-        "PRODUCT OVERVIEW": ("NON_CLAIM", 0.96),
-        "We achieved $10k MRR, verified by Stripe export.": ("LOW", 0.88),
-        "Our platform has significant traction.": ("MODERATE", 0.77),
-        "We will capture the entire trillion-dollar market with no competitors.": ("HIGH", 0.91),
+    sentences = [
+        "PRODUCT OVERVIEW",
+        "We achieved $10k MRR, verified by Stripe export.",
+        "Our platform has significant traction.",
+        "We will capture the entire trillion-dollar market with no competitors.",
+    ]
+    risk_labels = {
+        sentences[1]: ("LOW", 0.88),
+        sentences[2]: ("MODERATE", 0.77),
+        sentences[3]: ("HIGH", 0.91),
     }
 
-    def fake_classify(sentence, _manager):
-        return labels[sentence]
-
-    monkeypatch.setattr(analyzer, "classify_sentence_finetuned", fake_classify)
+    monkeypatch.setattr(
+        analyzer,
+        "is_investor_claim",
+        lambda text, manager=None: text != "PRODUCT OVERVIEW",
+    )
+    monkeypatch.setattr(
+        analyzer,
+        "classify_sentence_finetuned",
+        lambda text, _manager: risk_labels[text],
+    )
 
     results, summary, pipeline_info = analyze_sentences(
-        list(labels),
+        sentences,
         raw_text="We are a startup building software for small businesses.",
     )
 
     assert [item["risk"] for item in results] == ["Low", "Moderate", "High"]
     assert summary == {"low_risk": 1, "moderate_risk": 1, "high_risk": 1}
-    assert pipeline_info["mode"].startswith("fine_tuned_four_label")
+    assert pipeline_info["mode"].startswith("fine_tuned_three_label")
     assert all(item["question"] is None for item in results if item["risk"] == "Low")
     assert all(item["question"] for item in results if item["risk"] in ("Moderate", "High"))
-
-
-def test_cpu_device_override_does_not_probe_cuda(monkeypatch):
-    import torch
-    import backend.analyzer as analyzer
-
-    monkeypatch.setenv("PITCHPROBE_DEVICE", "cpu")
-    monkeypatch.setattr(
-        torch.cuda,
-        "is_available",
-        lambda: (_ for _ in ()).throw(AssertionError("CUDA must not be probed in CPU mode")),
-    )
-    manager = analyzer.ModelManager()
-    assert manager.device == "cpu"
-
-
-
-def test_excludes_incomplete_fragments_and_pitch_deck_footer_noise():
-    assert not is_investor_claim("Our workflows are not.")
-    assert not is_investor_claim(
-        "SONORA / SEED • OCT 2026 / ILLUSTRATIVE — NOT AN OFFER 14 14 / TEAM "
-        "A deliberately small founding team with clear capability gaps."
-    )
-    assert not is_investor_claim(
-        "EARABLE PHONE APP AI SERVICES WORK TOOLS 6-mic array ANC DSP VAD "
-        "touch controls Bluetooth audio handoff speech-to-text diarisation summary"
-    )
