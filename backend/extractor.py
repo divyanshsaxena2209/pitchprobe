@@ -40,7 +40,9 @@ async def extract_pdf_text(file: UploadFile) -> str:
                     detail="The PDF contains no pages.",
                 )
             for page in pdf.pages:
-                page_text = page.extract_text()
+                # A smaller x_tolerance helps pdfplumber preserve word spaces in
+                # PDFs whose text runs have unusually tight horizontal gaps.
+                page_text = page.extract_text(x_tolerance=2)
                 if page_text:
                     extracted_pages.append(page_text.strip())
 
