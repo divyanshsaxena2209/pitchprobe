@@ -16,6 +16,7 @@ import os
 import socket
 import subprocess
 import sys
+import threading
 import time
 from pathlib import Path
 from urllib.error import URLError
@@ -110,6 +111,22 @@ def backend_is_ready(port: int) -> bool:
         return False
 
 
+def relay_child_output(stdout, port: int, listening_event: threading.Event) -> None:
+    """Forward child logs and signal only when this child announces its listener."""
+    try:
+        for line in iter(stdout.readline, ""):
+            print(line, end="", flush=True)
+            if f"Uvicorn running on http://127.0.0.1:{port}" in line:
+                listening_event.set()
+    finally:
+        stdout.close()
+
+
+def next_candidate_port(port: int) -> int:
+    """Advance after every failed candidate, wrapping only after the port range."""
+    return PORT_START if port >= PORT_MAX else port + 1
+
+
 def stop_child(process: subprocess.Popen) -> None:
     if process.poll() is not None:
         return
@@ -149,56 +166,89 @@ def main() -> int:
     env = os.environ.copy()
     port = PORT_START
     attempts = 0
-    backend_ever_healthy = False
+    last_healthy_port = None
 
     while True:
         attempts += 1
-        print(f"\n[INFO] Attempt {attempts}: starting backend on port {port}...", flush=True)
+        print(
+            f"\n[INFO] Attempt {attempts}: starting backend on port {port}...",
+            flush=True,
+        )
 
         command = [
             sys.executable,
+            "-u",
             str(Path(__file__).resolve()),
             "--serve",
             str(port),
         ]
 
         try:
-            process = subprocess.Popen(command, cwd=ROOT, env=env)
+            process = subprocess.Popen(
+                command,
+                cwd=ROOT,
+                env=env,
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                bufsize=1,
+            )
         except OSError as exc:
             print(f"[WARN] Could not launch backend process: {exc}", flush=True)
-            if backend_ever_healthy:
-                # Once Next.js has been pointed at a confirmed backend port,
-                # keep that port stable across runtime crashes. Otherwise Next
-                # may keep proxying to the old URL after BACKEND_URL is changed.
-                print(
-                    f"[WARN] Retrying the previously healthy port {port} in 2s.",
-                    flush=True,
-                )
-                time.sleep(2)
-                continue
-            port += 1
-            if port > PORT_MAX:
-                port = PORT_START
+            print(f"[INFO] Port {port} failed; incrementing to the next port.", flush=True)
+            port = next_candidate_port(port)
+            if port == PORT_START:
                 time.sleep(2)
             continue
 
+        listening_event = threading.Event()
+        log_reader = threading.Thread(
+            target=relay_child_output,
+            args=(process.stdout, port, listening_event),
+            daemon=True,
+        )
+        log_reader.start()
+
         deadline = time.monotonic() + STARTUP_TIMEOUT_SECONDS
         ready = False
+        listener_seen = False
 
+        # A GET /api/health alone is not enough: an orphaned, older server
+        # could answer on this port while this child is still failing to bind.
+        # First require this child to log that its own Uvicorn listener started.
         while time.monotonic() < deadline:
             if process.poll() is not None:
                 break
-            if backend_is_ready(port):
-                ready = True
-                break
+
+            if listening_event.is_set():
+                listener_seen = True
+                if backend_is_ready(port):
+                    ready = True
+                    break
+
             time.sleep(HEALTH_CHECK_INTERVAL_SECONDS)
 
         if ready:
-            backend_ever_healthy = True
             update_backend_url(port)
-            print(f"\n[SUCCESS] PitchProbe backend is healthy at http://127.0.0.1:{port}", flush=True)
+            print(
+                f"\n[SUCCESS] PitchProbe backend is healthy at http://127.0.0.1:{port}",
+                flush=True,
+            )
             print(f"[INFO] Updated BACKEND_URL in {ROOT / '.env.local'}", flush=True)
-            print("[INFO] Keep this terminal open. Start/restart Next.js in another terminal.", flush=True)
+            if last_healthy_port is not None and port != last_healthy_port:
+                print(
+                    "[INFO] Backend moved to a new port after a failure. "
+                    "Restart the Next.js terminal so it reloads BACKEND_URL.",
+                    flush=True,
+                )
+            print(
+                "[INFO] Keep this terminal open. Start/restart Next.js in another terminal.",
+                flush=True,
+            )
+            last_healthy_port = port
 
             try:
                 exit_code = process.wait()
@@ -212,37 +262,44 @@ def main() -> int:
                 return 0
 
             print(
-                f"[WARN] Backend exited with code {exit_code}.",
+                f"[WARN] Backend process exited with code {exit_code}.",
+                flush=True,
+            )
+            print(
+                f"[INFO] Port {port} failed after startup; incrementing to the next port.",
                 flush=True,
             )
         else:
             exit_code = process.poll()
             if exit_code is None:
                 stop_child(process)
-                reason = f"health endpoint did not respond within {STARTUP_TIMEOUT_SECONDS}s"
+                if not listener_seen:
+                    reason = (
+                        f"this child did not announce a listening Uvicorn server "
+                        f"within {STARTUP_TIMEOUT_SECONDS}s"
+                    )
+                else:
+                    reason = (
+                        f"this child's health endpoint did not respond within "
+                        f"{STARTUP_TIMEOUT_SECONDS}s"
+                    )
             else:
-                reason = f"backend process exited during startup (code {exit_code})"
+                reason = (
+                    f"this child exited before its own listener became healthy "
+                    f"(code {exit_code})"
+                )
 
             print(f"[WARN] Port {port} failed: {reason}", flush=True)
-            print("[INFO] Incrementing port and retrying.", flush=True)
+            print(f"[INFO] Incrementing from port {port} to the next candidate.", flush=True)
 
-        if backend_ever_healthy:
-            print(
-                f"[WARN] Restarting on the same port {port} to keep "
-                "BACKEND_URL stable. Press Ctrl+C to stop.",
-                flush=True,
-            )
-            time.sleep(2)
-            continue
-
-        port += 1
-        if port > PORT_MAX:
+        log_reader.join(timeout=0.5)
+        port = next_candidate_port(port)
+        if port == PORT_START:
             print(
                 f"[WARN] Reached port {PORT_MAX}; starting another scan at "
                 f"{PORT_START} after a short pause. Press Ctrl+C to stop.",
                 flush=True,
             )
-            port = PORT_START
             time.sleep(2)
 
 
