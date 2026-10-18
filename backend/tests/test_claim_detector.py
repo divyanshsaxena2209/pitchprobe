@@ -151,3 +151,30 @@ def test_finetuned_classifier_path_screens_claims_then_assigns_three_risk_labels
     assert pipeline_info["mode"].startswith("fine_tuned_three_label")
     assert all(item["question"] is None for item in results if item["risk"] == "Low")
     assert all(item["question"] for item in results if item["risk"] in ("Moderate", "High"))
+
+
+
+def test_cpu_device_override_does_not_probe_cuda(monkeypatch):
+    import torch
+    import backend.analyzer as analyzer
+
+    monkeypatch.setenv("PITCHPROBE_DEVICE", "cpu")
+    monkeypatch.setattr(
+        torch.cuda,
+        "is_available",
+        lambda: (_ for _ in ()).throw(AssertionError("CUDA must not be probed in CPU mode")),
+    )
+    manager = analyzer.ModelManager()
+    assert manager.device == "cpu"
+
+
+def test_excludes_incomplete_fragments_and_pitch_deck_footer_noise():
+    assert not is_investor_claim("Our workflows are not.")
+    assert not is_investor_claim(
+        "SONORA / SEED • OCT 2026 / ILLUSTRATIVE — NOT AN OFFER 14 14 / TEAM "
+        "A deliberately small founding team with clear capability gaps."
+    )
+    assert not is_investor_claim(
+        "EARABLE PHONE APP AI SERVICES WORK TOOLS 6-mic array ANC DSP VAD "
+        "touch controls Bluetooth audio handoff speech-to-text diarisation summary"
+    )
