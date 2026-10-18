@@ -78,7 +78,7 @@ async def analyze_pitch_deck(file: UploadFile = File(...)):
         sentences = [s.strip() for s in raw_text.split("\n") if len(s.strip()) > 15]
 
     # 3. Two-stage analysis with risk gating
-    results, summary_counts, pipeline_info = analyze_sentences(sentences)
+    results, summary_counts, pipeline_info = analyze_sentences(sentences, raw_text=raw_text)
 
     sentence_models = [SentenceAnalysis(**item) for item in results]
     summary_model = RiskSummary(
