@@ -1,4 +1,4 @@
-from backend.analyzer import analyze_sentences
+from backend.analyzer import ModelManager, analyze_sentences
 from backend.claim_detector import (
     DOCUMENT_WARNING,
     document_warning_for_text,
@@ -107,3 +107,36 @@ def test_detects_compacted_academic_metadata():
 
 def test_segmenter_keeps_compact_market_metric_bullet():
     assert "TAM: $5B" in split_into_sentences("TAM: $5B")
+
+
+def test_finetuned_classifier_path_skips_nonclaims_and_uses_four_labels(monkeypatch):
+    import backend.analyzer as analyzer
+
+    manager = ModelManager.get_instance()
+    monkeypatch.setattr(manager, "classifier_mode", "fine_tuned")
+    monkeypatch.setattr(manager, "classifier_loaded", True)
+    monkeypatch.setattr(manager, "classifier_name", "test-four-label-checkpoint")
+    monkeypatch.setattr(manager, "generator_loaded", False)
+
+    labels = {
+        "PRODUCT OVERVIEW": ("NON_CLAIM", 0.96),
+        "We achieved $10k MRR, verified by Stripe export.": ("LOW", 0.88),
+        "Our platform has significant traction.": ("MODERATE", 0.77),
+        "We will capture the entire trillion-dollar market with no competitors.": ("HIGH", 0.91),
+    }
+
+    def fake_classify(sentence, _manager):
+        return labels[sentence]
+
+    monkeypatch.setattr(analyzer, "classify_sentence_finetuned", fake_classify)
+
+    results, summary, pipeline_info = analyze_sentences(
+        list(labels),
+        raw_text="We are a startup building software for small businesses.",
+    )
+
+    assert [item["risk"] for item in results] == ["Low", "Moderate", "High"]
+    assert summary == {"low_risk": 1, "moderate_risk": 1, "high_risk": 1}
+    assert pipeline_info["mode"].startswith("fine_tuned_four_label")
+    assert all(item["question"] is None for item in results if item["risk"] == "Low")
+    assert all(item["question"] for item in results if item["risk"] in ("Moderate", "High"))
