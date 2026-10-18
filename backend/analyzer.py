@@ -82,6 +82,11 @@ class ModelManager:
             else "cross-encoder/nli-deberta-v3-base"
         )
         self.generator_name = "google/flan-t5-small"
+        # The base FLAN-T5 checkpoint emits generic/unrelated questions on
+        # this task. Keep it opt-in until a task-specific checkpoint is evaluated.
+        self.use_flan_t5 = os.environ.get("PITCHPROBE_USE_FLAN_T5", "0").strip().lower() in {
+            "1", "true", "yes"
+        }
 
         self.classifier_loaded = False
         self.generator_loaded = False
@@ -172,20 +177,33 @@ class ModelManager:
                                 exc,
                             )
 
-                if not self.generator_loaded:
+                if self.use_flan_t5 and not self.generator_loaded:
                     try:
-                        logger.info("Checking local cache for %s...", self.generator_name)
-                        tok = AutoTokenizer.from_pretrained(self.generator_name, local_files_only=False)
+                        logger.info("Loading opt-in FLAN-T5 generator %s...", self.generator_name)
+                        tok = AutoTokenizer.from_pretrained(
+                            self.generator_name,
+                            local_files_only=False,
+                        )
                         model = AutoModelForSeq2SeqLM.from_pretrained(
-                            self.generator_name, local_files_only=False
+                            self.generator_name,
+                            local_files_only=False,
                         ).to(self.device)
                         model.eval()
                         self.generator_tokenizer = tok
                         self.generator_model = model
                         self.generator_loaded = True
-                        logger.info("Loaded generator %s from local cache.", self.generator_name)
-                    except Exception:
-                        logger.info("Local weights for %s not found; using calibrated VC counter-questions.", self.generator_name)
+                        logger.info("Loaded opt-in generator %s.", self.generator_name)
+                    except Exception as exc:
+                        logger.warning(
+                            "FLAN-T5 unavailable; using targeted investor questions: %s",
+                            exc,
+                        )
+                elif not self.use_flan_t5:
+                    logger.info(
+                        "FLAN-T5 disabled for default inference; using targeted "
+                        "investor-question rules. Set PITCHPROBE_USE_FLAN_T5=1 "
+                        "to opt in for evaluation."
+                    )
             except Exception as e:
                 logger.warning("Model loader encountered error: %s", e)
 
@@ -330,54 +348,145 @@ def classify_sentence_nli(
 
 
 
+def _is_useful_generated_question(question: str) -> bool:
+    """Reject generic FLAN outputs that do not challenge the specific claim."""
+    candidate = re.sub(r"\s+", " ", (question or "")).strip().lower()
+    if len(candidate) < 28 or not candidate.endswith("?"):
+        return False
+    generic_patterns = [
+        r"\bbest title\b",
+        r"\btitle for (?:the )?(?:article|vc|company)\b",
+        r"\bwhat is a (?:tough )?vc objection\b",
+        r"\bwhich of the following\b",
+        r"\bwhat is the best way to make a profit\b",
+        r"\bwhat is the reason for this\b",
+        r"\bwhat is the reason why\b",
+        r"\bname of the company that is a part of\b",
+        r"^what is the main reason for (?:the )?vc",
+    ]
+    return not any(re.search(pattern, candidate) for pattern in generic_patterns)
+
+
+def _targeted_investor_question(sentence: str, risk: str) -> str:
+    """Generate one evidence-seeking VC question based on the claim's main topic."""
+    text = sentence.lower()
+
+    if re.search(r"\b(tam|sam|som|market size|market share|penetration|beachhead|trillion|billion|market estimate|market sizing)\b", text):
+        return (
+            "What bottom-up assumptions for the reachable customer segment, price, "
+            "and adoption rate support this market estimate?"
+        )
+
+    if re.search(r"\b(interviews?|waitlist|sign-ups?|paid units|paid deposits|pilot|beta|traction|activation|retention|conversion|weekly active|customers?|users?)\b", text):
+        return (
+            "How many of these interested users or pilot participants converted to "
+            "paying customers, and what evidence supports that conversion rate?"
+        )
+
+    if re.search(r"\b(revenue|forecast|financial plan|ebitda|runway|crore|million|billion|funding|raise|raising|valuation|year three|fy\d{2})\b", text):
+        return (
+            "Which assumptions for sales volume, realised price, conversion, and gross "
+            "margin drive this forecast, and what evidence validates them?"
+        )
+
+    if re.search(r"\b(unit economics|cogs|gross margin|contribution|manufacturing cost|asp|fulfilment|fulfillment|warranty|cost per|unit cost|pricing|price)\b", text):
+        return (
+            "Do these unit economics include discounts, returns, fulfilment, warranty, "
+            "channel fees, and acquisition cost, and which supplier quotes support them?"
+        )
+
+    if re.search(r"\b(competitors?|competition|incumbents?|moat|defensib|patent|competitive advantage|clone|copy)\b", text):
+        return (
+            "What prevents established competitors from bundling or copying this, and "
+            "what evidence shows customers would switch to your product?"
+        )
+
+    if re.search(r"\b(transcription|diarisation|accuracy|latency|sub-\d|model quality|ai reliability|algorithm|benchmark|response time|technical performance)\b", text):
+        return (
+            "What controlled benchmark supports this performance claim, what baseline "
+            "did you compare against, and how many users or trials were measured?"
+        )
+
+    if re.search(r"\b(privacy|consent|recording|security|retention|deletion|encrypted|regulatory|compliance|legal)\b", text):
+        return (
+            "What concrete controls or independent review demonstrate that this privacy "
+            "and compliance approach works in the intended deployment?"
+        )
+
+    if re.search(r"\b(supplier|manufactur|production|inventory|tooling|yield|hardware|battery|fit-related|returns|supply.chain|acoustic testing)\b", text):
+        return (
+            "What pre-production test results, supplier commitments, or yield data must "
+            "be met before you commit to tooling or inventory spend?"
+        )
+
+    if re.search(r"\b(team|founder|hire|hiring|leader|capability gap|advisor|operations|supply-chain)\b", text):
+        return (
+            "Which critical capability is currently missing, who will own it, and what "
+            "is the hiring or partner timeline before the next milestone?"
+        )
+
+    if re.search(r"\b(reduces?|saves?|improves?|faster|better|industry.leading|best.in.class|seamless|significant|unmatched|leading|strong|large|massive|revolutionary)\b", text):
+        return (
+            "What measurable customer outcome or independent benchmark supports this "
+            "benefit, and what baseline are you comparing it with?"
+        )
+
+    if risk == "High":
+        return (
+            "What specific evidence would let an independent investor verify this claim, "
+            "and what result would show that it is overstated?"
+        )
+    return (
+        "What observable customer result or source evidence supports this statement, "
+        "and what would falsify it?"
+    )
+
+
 def generate_objection_question(sentence: str, risk: str, manager: ModelManager) -> Optional[str]:
-    """Generate exactly one investor counter-question for Moderate/High sentences; Low returns None."""
-    # Strict Gating Rule (DA1 Section 4.5 & Requirement 5):
-    # Low-risk sentences NEVER receive a question.
+    """Generate one targeted question for Moderate/High claims; Low returns None."""
     if risk == "Low":
         return None
 
-    if manager.generator_loaded and manager.generator_model and manager.generator_tokenizer:
+    # FLAN-T5 remains available for experiments, but its generic checkpoint is
+    # not trusted by default for this task. Discard unrelated completions.
+    if (
+        getattr(manager, "use_flan_t5", False)
+        and manager.generator_loaded
+        and manager.generator_model is not None
+        and manager.generator_tokenizer is not None
+    ):
         try:
-            prompt = f"Investor review: {sentence}. Generate one tough VC objection question:"
+            prompt = (
+                "You are a skeptical seed-stage venture capitalist. Ask exactly one "
+                "concise, specific, evidence-seeking question that challenges the "
+                "following startup claim. Do not ask for a title or a generic VC objection. "
+                "Focus on the weakest assumption, metric, customer validation, economics, "
+                "competition, or implementation risk.\n"
+                f"Risk: {risk}\nClaim: {sentence}\nQuestion:"
+            )
             inputs = manager.generator_tokenizer(
                 prompt, return_tensors="pt", truncation=True, max_length=256
             ).to(manager.device)
-
             with torch.no_grad():
                 outputs = manager.generator_model.generate(
                     **inputs,
-                    max_new_tokens=48,
+                    max_new_tokens=56,
                     num_beams=2,
                     early_stopping=True,
                     no_repeat_ngram_size=2,
                 )
-                generated = manager.generator_tokenizer.decode(
-                    outputs[0], skip_special_tokens=True
-                ).strip()
-
-            if generated and len(generated) > 10:
-                if not generated.endswith("?"):
-                    generated += "?"
+            generated = manager.generator_tokenizer.decode(
+                outputs[0], skip_special_tokens=True
+            ).strip()
+            if not generated.endswith("?"):
+                generated += "?"
+            if _is_useful_generated_question(generated):
                 return generated
-        except Exception as e:
-            logger.warning("FLAN-T5 question generation failed, using VC fallback template: %s", e)
+            logger.warning("Discarding generic/irrelevant FLAN-T5 question: %r", generated)
+        except Exception as exc:
+            logger.warning("FLAN-T5 question generation failed; using targeted fallback: %s", exc)
 
-    # Targeted investor objection generation heuristics conditioned on claim context
-    s_lower = sentence.lower()
-
-    if any(k in s_lower for k in ["market", "tam", "sam", "som", "trillion", "billion", "share"]):
-        return "What bottom-up calculation or initial customer segment validates this market size projection?"
-    elif any(k in s_lower for k in ["competitor", "competition", "monopoly", "only", "dominant"]):
-        return "What structural moat or defensible IP prevents well-funded incumbents from cloning your solution?"
-    elif any(k in s_lower for k in ["revenue", "growth", "scale", "sales", "arr", "mrr", "profit"]):
-        return "What are your specific unit economics (CAC, LTV, and payback period) underpinning this trajectory?"
-    elif any(k in s_lower for k in ["ai", "platform", "technology", "algorithm", "deep tech"]):
-        return "How much of this technology relies on third-party APIs versus proprietary defensible architecture?"
-    elif risk == "High":
-        return "What audited operational milestones or customer pilot data substantiate this ambitious claim?"
-    else:
-        return "What concrete empirical evidence or customer metrics support this statement?"
+    return _targeted_investor_question(sentence, risk)
 
 
 def analyze_sentences(
