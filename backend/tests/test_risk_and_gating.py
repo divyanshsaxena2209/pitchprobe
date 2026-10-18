@@ -2,7 +2,14 @@ from types import SimpleNamespace
 
 import torch
 
-from backend.analyzer import analyze_sentences, classify_sentence_nli, generate_objection_question, ModelManager
+from backend.analyzer import (
+    analyze_sentences,
+    classify_sentence_nli,
+    generate_objection_question,
+    _is_useful_generated_question,
+    _targeted_investor_question,
+    ModelManager,
+)
 
 
 def test_risk_mapping():
@@ -120,3 +127,41 @@ def test_nli_risk_score_uses_raw_entailment_logits(monkeypatch):
     assert risk == "Low"
     assert abs(score - round(expected, 4)) < 1e-4
     assert score > 0.35
+
+
+
+def test_irrelevant_flan_questions_are_rejected():
+    assert not _is_useful_generated_question("What is the best title for the article?")
+    assert not _is_useful_generated_question("What is a tough VC objection?")
+    assert _is_useful_generated_question(
+        "Which bottom-up assumptions support this market-size estimate?"
+    )
+
+
+def test_question_templates_are_specific_to_claim_topic():
+    market_question = _targeted_investor_question(
+        "Our SAM is a management assumption and has not been validated.",
+        "Moderate",
+    )
+    assert "customer segment" in market_question
+    assert "market estimate" in market_question
+
+    traction_question = _targeted_investor_question(
+        "We have 310 waitlist sign-ups, but zero paid units shipped.",
+        "High",
+    )
+    assert "paying customers" in traction_question
+    assert "conversion rate" in traction_question
+
+    financial_question = _targeted_investor_question(
+        "We forecast ₹42 crore revenue in year three if conversion holds.",
+        "High",
+    )
+    assert "gross margin" in financial_question
+    assert "forecast" in financial_question
+
+
+def test_flan_t5_is_opt_in_by_default(monkeypatch):
+    monkeypatch.delenv("PITCHPROBE_USE_FLAN_T5", raising=False)
+    manager = ModelManager()
+    assert manager.use_flan_t5 is False
