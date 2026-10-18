@@ -60,7 +60,7 @@ STRONG_BUSINESS_MARKERS = [
     "mrr",
     "payingcustomers",
     "customeracquisition",
-    "unit economics".replace(" ", ""),
+    "uniteconomics",
     "grossmargin",
     "retention",
     "churn",
@@ -78,7 +78,9 @@ BUSINESS_TERMS = re.compile(
     r"competitors?|competition|competitive advantage|moat|patent|"
     r"customers? acquired|contracts?|paid pilots?|waitlist|"
     r"product|platform|solution|service|business|founders?|"
-    r"small businesses|clinics?|hospitals?|merchants?|teams?|"
+    r"small businesses|SMBs?|SMEs?|enterprises?|clinics?|hospitals?|"
+    r"merchants?|teams?|healthcare|logistics|retail|manufacturers?|"
+    r"inventory|invoices?|compliance|pain points?|consumers?|patients?|"
     r"ROI|GMV|orders?|bookings?|active accounts?)\b",
     re.IGNORECASE,
 )
@@ -86,11 +88,13 @@ BUSINESS_TERMS = re.compile(
 ASSERTION_TERMS = re.compile(
     r"\b(?:is|are|has|have|had|will|can|could|achieved|reached|"
     r"generated|grew|grown|increased|increases|decreased|decreases|"
-    r"reduced|reduces|cut|saves?|spends?|costs?|launched|signed|"
-    r"raised|serves?|retains?|offers?|provides?|enables?|helps?|"
-    r"solves?|captures?|automates?|improves?|delivers?|"
-    r"expects?|forecast|projects?|targets?|plans? to|"
-    r"converts?|processes?|supports?|eliminates?)\b",
+    r"reduced|reduces|cut|saves?|spends?|spent|loses?|lost|wastes?|"
+    r"lacks?|struggles?|requires?|needs?|takes?|valued|worth|"
+    r"costs?|launched|signed|raised|serves?|retains?|offers?|"
+    r"provides?|enables?|helps?|solves?|captures?|automates?|"
+    r"improves?|delivers?|expects?|forecast|projects?|targets?|"
+    r"plans? to|converts?|processes?|supports?|eliminates?|"
+    r"prevents?|avoids?|accelerates?|scales?)\b",
     re.IGNORECASE,
 )
 
@@ -152,9 +156,16 @@ def document_warning_for_text(raw_text: Optional[str]) -> Optional[str]:
         return DOCUMENT_WARNING
     return None
 
+def normalize_claim_text(text: str) -> str:
+    """Restore recoverable word boundaries lost in compact PDF text runs."""
+    candidate = re.sub(r"(?<=[a-z])(?=[A-Z])", " ", text or "")
+    candidate = re.sub(r"(?<=[A-Z])(?=[A-Z][a-z])", " ", candidate)
+    return re.sub(r"\s+", " ", candidate).strip()
+
+
 def is_obvious_non_claim(text: str) -> bool:
     """Remove headings, references, administrative details, and research noise."""
-    candidate = re.sub(r"\s+", " ", text or "").strip()
+    candidate = normalize_claim_text(text)
     if len(candidate) < 12 or len(candidate.split()) < 3:
         return True
 
@@ -210,7 +221,7 @@ def _entailment_probability(text: str, hypothesis: str, manager: object) -> floa
 
 def is_investor_claim(text: str, manager: Optional[object] = None) -> bool:
     """Return True only for likely investor-relevant business/product claims."""
-    candidate = re.sub(r"\s+", " ", text or "").strip()
+    candidate = normalize_claim_text(text)
     if is_obvious_non_claim(candidate):
         return False
 
