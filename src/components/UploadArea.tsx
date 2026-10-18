@@ -186,7 +186,13 @@ export default function UploadArea({ onResultsChange }: UploadAreaProps) {
   const filteredSentences = analysisResult
     ? analysisResult.sentences
         .filter((s) => (riskFilter === "ALL" ? true : s.risk === riskFilter))
-        .sort((a, b) => b.score - a.score)
+        .sort((a, b) => {
+          // Put question-bearing claims first, then order each group by
+          // the displayed confidence percentage from highest to lowest.
+          if (a.question && !b.question) return -1;
+          if (!a.question && b.question) return 1;
+          return b.score - a.score;
+        })
     : [];
 
   return (
