@@ -60,6 +60,10 @@ npm run build
 PitchProbe includes a four-label DeBERTa fine-tuning pipeline and a baseline evaluator in [training/README.md](training/README.md). The first step is to create a human-reviewed, deck-separated dataset; do not train on unreviewed predictions from the current model. Private dataset files and trained checkpoints are ignored by Git.
 
 
+### Long-running PDF analysis
+
+The browser uses `NEXT_PUBLIC_BACKEND_URL` to post PDFs directly to FastAPI, bypassing the Next.js rewrite proxy for long CPU-bound analysis requests. `start_backend.py` writes both `BACKEND_URL` and `NEXT_PUBLIC_BACKEND_URL` whenever it confirms the selected port. Always start/restart Next.js after starting the launcher or if the backend selects a new port, because public environment variables are included when the client bundle is built.
+
 ### Windows stability / CPU troubleshooting
 
 The backend launcher advances to the next port after every failed candidate. It marks a port successful only after the child Uvicorn process itself logs that it is listening and that port's health endpoint responds; it does not mistake an older process on the same port for the new child. If a previously healthy backend later crashes, the launcher also advances to a new port and updates `BACKEND_URL`. Restart the Next.js dev server after that runtime port change so its rewrite configuration reloads the updated URL.
