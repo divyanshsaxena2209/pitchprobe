@@ -156,6 +156,7 @@ def document_warning_for_text(raw_text: Optional[str]) -> Optional[str]:
         return DOCUMENT_WARNING
     return None
 
+
 def normalize_claim_text(text: str) -> str:
     """Restore recoverable word boundaries lost in compact PDF text runs."""
     candidate = re.sub(r"(?<=[a-z])(?=[A-Z])", " ", text or "")
@@ -166,7 +167,11 @@ def normalize_claim_text(text: str) -> str:
 def is_obvious_non_claim(text: str) -> bool:
     """Remove headings, references, administrative details, and research noise."""
     candidate = normalize_claim_text(text)
-    if len(candidate) < 12 or len(candidate.split()) < 3:
+    has_metric = bool(
+        re.search(r"[$€£₹%]|\b\d+(?:\.\d+)?\b", candidate)
+        and BUSINESS_TERMS.search(candidate)
+    )
+    if (len(candidate) < 12 or len(candidate.split()) < 3) and not has_metric:
         return True
 
     for pattern in NON_CLAIM_PATTERNS:
@@ -229,8 +234,14 @@ def is_investor_claim(text: str, manager: Optional[object] = None) -> bool:
     has_assertion = bool(ASSERTION_TERMS.search(candidate))
     has_product_assertion = bool(PRODUCT_SUBJECT_ACTION.search(candidate))
 
-    # High-confidence business claims do not need another model call.
-    if (has_business_term and has_assertion) or has_product_assertion:
+    has_metric = bool(
+        re.search(r"[$€£₹%]|\b\d+(?:\.\d+)?\b", candidate)
+        and has_business_term
+    )
+
+    # High-confidence business claims and slide metrics do not need another
+    # model call. This keeps compact items such as "TAM: $5B" in the pipeline.
+    if has_metric or (has_business_term and has_assertion) or has_product_assertion:
         return True
 
     # Use the already-loaded NLI model for ambiguous sentences; don't download
