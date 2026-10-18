@@ -6,18 +6,16 @@ from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Dict, List
 
-LABELS = ["NON_CLAIM", "LOW", "MODERATE", "HIGH"]
+LABELS = ["LOW", "MODERATE", "HIGH"]
 SPLITS = {"train", "validation", "test"}
 REQUIRED_COLUMNS = {"deck_id", "text", "label", "split"}
 OPTIONAL_COLUMNS = {"notes"}
 
 
 def normalize_label(value: str) -> str:
-    """Normalize common human-entered variants to the four canonical labels."""
+    """Normalize common variants to the three canonical claim-risk labels."""
     candidate = re.sub(r"[\s-]+", "_", (value or "").strip().upper())
     aliases = {
-        "NONCLAIM": "NON_CLAIM",
-        "NOT_A_CLAIM": "NON_CLAIM",
         "GROUNDED": "LOW",
         "LOW_RISK": "LOW",
         "MODERATE_RISK": "MODERATE",
@@ -37,8 +35,9 @@ def read_and_validate_dataset(
     csv_path = Path(path)
     if not csv_path.exists():
         raise FileNotFoundError(
-            f"Dataset not found: {csv_path}. Copy training/data/claims_template.csv "
-            "to training/data/claims.csv and add human-reviewed rows."
+            f"Dataset not found: {csv_path}. For external-only training, run "
+            "'python -m training.prepare_finclaimradar' first, or supply a "
+            "CSV of externally sourced and consistently mapped claim labels."
         )
 
     with csv_path.open("r", encoding="utf-8-sig", newline="") as handle:
@@ -111,7 +110,7 @@ def read_and_validate_dataset(
             f"Missing: {', '.join(sorted(missing_train_labels))}."
         )
 
-    print(f"Validated {len(rows)} labeled examples from {len(split_by_deck)} decks.")
+    print(f"Validated {len(rows)} labeled examples in {len(split_by_deck)} groups.")
     for split in ("train", "validation", "test"):
         split_rows = [row for row in rows if row["split"] == split]
         label_counts = Counter(row["label"] for row in split_rows)
@@ -120,7 +119,7 @@ def read_and_validate_dataset(
             f"{len(decks_by_split[split]):3d} decks | "
             + ", ".join(f"{label}={label_counts.get(label, 0)}" for label in LABELS)
         )
-    print("Deck leakage check: passed (each deck belongs to exactly one split).")
+    print("Group leakage check: passed (each group belongs to exactly one split).")
     return rows
 
 
