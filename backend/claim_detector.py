@@ -117,6 +117,7 @@ NON_CLAIM_PATTERNS = [
     r"\ball\b.{0,180}\b(?:figures|data|assumptions)\s+(?:are|were)\s+(?:invented|fictional|illustrative)\b",
     r"^\s*no\b.{0,180}\b(?:is|are|was|were)\s+claimed\b",
     r"^\s*(?:buyers who need\b|pilot if\b|deposits target\b|month runway target\b)",
+    r"^\s*[,;:]\s*\d",
     r"\bthis is a fictional scenario\b",
     # Section headings and document furniture.
     r"^\s*(?:references?|bibliography|appendix|table of contents)\s*:?\s*$",
