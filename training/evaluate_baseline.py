@@ -32,6 +32,7 @@ def main() -> None:
     test_rows = [row for row in rows if row["split"] == "test"]
 
     manager = ModelManager.get_instance()
+    manager.classifier_mode = "nli"
     manager.device = "cuda" if torch.cuda.is_available() else "cpu"
     manager.classifier_name = args.model_name
     print(f"Loading baseline classifier: {args.model_name} on {manager.device}")
