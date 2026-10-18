@@ -56,7 +56,15 @@ class ModelManager:
         self.generator_tokenizer = None
         self.generator_model = None
 
-        self.classifier_name = "cross-encoder/nli-deberta-v3-base"
+        # A fine-tuned four-label checkpoint is optional. Without this
+        # environment variable the original NLI classifier remains active.
+        self.finetuned_classifier_path = os.environ.get("PITCHPROBE_CLASSIFIER_PATH", "").strip()
+        self.classifier_mode = "fine_tuned" if self.finetuned_classifier_path else "nli"
+        self.classifier_name = (
+            self.finetuned_classifier_path
+            if self.finetuned_classifier_path
+            else "cross-encoder/nli-deberta-v3-base"
+        )
         self.generator_name = "google/flan-t5-small"
 
         self.classifier_loaded = False
@@ -80,19 +88,73 @@ class ModelManager:
                 )
 
                 if not self.classifier_loaded:
-                    try:
-                        logger.info("Checking local cache for %s...", self.classifier_name)
-                        tok = AutoTokenizer.from_pretrained(self.classifier_name, local_files_only=False)
-                        model = AutoModelForSequenceClassification.from_pretrained(
-                            self.classifier_name, local_files_only=False
-                        ).to(self.device)
-                        model.eval()
-                        self.classifier_tokenizer = tok
-                        self.classifier_model = model
-                        self.classifier_loaded = True
-                        logger.info("Loaded classifier %s from local cache.", self.classifier_name)
-                    except Exception:
-                        logger.info("Local weights for %s not found; using calibrated heuristics.", self.classifier_name)
+                    # Fine-tuned checkpoints are local-only: do not silently
+                    # download an unrelated model if the configured path is bad.
+                    if self.classifier_mode == "fine_tuned":
+                        try:
+                            logger.info(
+                                "Loading fine-tuned four-label classifier from %s...",
+                                self.classifier_name,
+                            )
+                            tok = AutoTokenizer.from_pretrained(
+                                self.classifier_name,
+                                local_files_only=True,
+                            )
+                            model = AutoModelForSequenceClassification.from_pretrained(
+                                self.classifier_name,
+                                local_files_only=True,
+                            ).to(self.device)
+                            normalized_labels = {
+                                str(label).strip().upper().replace("-", "_").replace(" ", "_")
+                                for label in model.config.id2label.values()
+                            }
+                            required_labels = {"NON_CLAIM", "LOW", "MODERATE", "HIGH"}
+                            if not required_labels.issubset(normalized_labels):
+                                raise ValueError(
+                                    "Fine-tuned checkpoint must define labels "
+                                    "NON_CLAIM, LOW, MODERATE, and HIGH; found "
+                                    f"{sorted(normalized_labels)}"
+                                )
+                            model.eval()
+                            self.classifier_tokenizer = tok
+                            self.classifier_model = model
+                            self.classifier_loaded = True
+                            logger.info(
+                                "Loaded fine-tuned classifier %s.",
+                                self.classifier_name,
+                            )
+                        except Exception as exc:
+                            logger.error(
+                                "Could not load fine-tuned classifier at %s: %s. "
+                                "Falling back to the original NLI model.",
+                                self.classifier_name,
+                                exc,
+                            )
+                            self.classifier_mode = "nli"
+                            self.classifier_name = "cross-encoder/nli-deberta-v3-base"
+
+                    if not self.classifier_loaded:
+                        try:
+                            logger.info("Checking local cache for %s...", self.classifier_name)
+                            tok = AutoTokenizer.from_pretrained(
+                                self.classifier_name,
+                                local_files_only=False,
+                            )
+                            model = AutoModelForSequenceClassification.from_pretrained(
+                                self.classifier_name,
+                                local_files_only=False,
+                            ).to(self.device)
+                            model.eval()
+                            self.classifier_tokenizer = tok
+                            self.classifier_model = model
+                            self.classifier_loaded = True
+                            logger.info("Loaded classifier %s.", self.classifier_name)
+                        except Exception as exc:
+                            logger.warning(
+                                "Classifier %s unavailable; using calibrated heuristics: %s",
+                                self.classifier_name,
+                                exc,
+                            )
 
                 if not self.generator_loaded:
                     try:
@@ -117,6 +179,42 @@ class ModelManager:
         else:
             _loader()
 
+
+
+def classify_sentence_finetuned(
+    sentence: str, manager: ModelManager
+) -> Tuple[str, float]:
+    """Predict NON_CLAIM/LOW/MODERATE/HIGH with the fine-tuned model."""
+    if not (
+        manager.classifier_loaded
+        and manager.classifier_model is not None
+        and manager.classifier_tokenizer is not None
+    ):
+        raise RuntimeError("Fine-tuned classifier is not loaded")
+
+    features = manager.classifier_tokenizer(
+        sentence,
+        truncation=True,
+        max_length=256,
+        return_tensors="pt",
+    ).to(manager.device)
+
+    with torch.no_grad():
+        logits = manager.classifier_model(**features).logits
+    probabilities = torch.softmax(logits, dim=-1)[0]
+
+    id2label = {
+        int(key): str(value).strip().upper().replace("-", "_").replace(" ", "_")
+        for key, value in manager.classifier_model.config.id2label.items()
+    }
+    best_idx = int(torch.argmax(probabilities).item())
+    label = id2label.get(best_idx, "")
+    if label not in {"NON_CLAIM", "LOW", "MODERATE", "HIGH"}:
+        raise ValueError(
+            "Unexpected fine-tuned label mapping; expected NON_CLAIM/LOW/"
+            f"MODERATE/HIGH, found {id2label}"
+        )
+    return label, round(float(probabilities[best_idx].item()), 4)
 
 
 def classify_sentence_nli(
@@ -269,18 +367,22 @@ def analyze_sentences(
     sentences: List[str],
     raw_text: Optional[str] = None,
 ) -> Tuple[List[Dict], Dict[str, int], Dict[str, object]]:
-    """Screen for investor claims, classify only claims, then gate questions."""
+    """Screen claims, classify risk, then gate investor question generation."""
     manager = ModelManager.get_instance()
     summary_counts = {"low_risk": 0, "moderate_risk": 0, "high_risk": 0}
 
-    if manager.classifier_loaded and manager.generator_loaded:
-        mode = "transformer_classifier+transformer_generator"
+    if manager.classifier_loaded and manager.classifier_mode == "fine_tuned":
+        classifier_mode_name = "fine_tuned_four_label"
     elif manager.classifier_loaded:
-        mode = "transformer_classifier+heuristic_generator"
-    elif manager.generator_loaded:
-        mode = "heuristic_classifier+transformer_generator"
+        classifier_mode_name = "transformer_nli"
     else:
-        mode = "calibrated_domain_heuristics"
+        classifier_mode_name = "calibrated_domain_heuristics"
+
+    if manager.generator_loaded:
+        mode = f"{classifier_mode_name}+transformer_generator"
+    else:
+        mode = f"{classifier_mode_name}+heuristic_generator"
+
     pipeline_info = {
         "classifier": manager.classifier_name,
         "generator": manager.generator_name,
@@ -292,8 +394,7 @@ def analyze_sentences(
         "document_warning": None,
     }
 
-    # Detect coursework/research documents at document level. Scoring individual
-    # sentences from those files would create misleading investor objections.
+    # Skip obvious coursework/research files before classifying individual lines.
     document_warning = document_warning_for_text(raw_text)
     if document_warning:
         pipeline_info["note"] = (
@@ -303,15 +404,32 @@ def analyze_sentences(
         pipeline_info["document_warning"] = document_warning
         return [], summary_counts, pipeline_info
 
-    # Stage 0: filter non-claims. The risk classifier must never assign a risk
-    # tier simply because a sentence exists in the PDF.
-    claims = [
-        normalize_claim_text(sentence)
-        for sentence in sentences
-        if is_investor_claim(sentence, manager)
-    ]
+    candidates: List[Tuple[str, str, float]] = []
 
-    if not claims:
+    if manager.classifier_loaded and manager.classifier_mode == "fine_tuned":
+        # The fine-tuned head predicts all four labels directly, including
+        # NON_CLAIM; don't run the older heuristic/NLI claim filter in this mode.
+        risk_for_label = {"LOW": "Low", "MODERATE": "Moderate", "HIGH": "High"}
+        for sentence in sentences:
+            text = normalize_claim_text(sentence)
+            if not text:
+                continue
+            label, score = classify_sentence_finetuned(text, manager)
+            if label == "NON_CLAIM":
+                continue
+            candidates.append((text, risk_for_label[label], score))
+    else:
+        # Preserve current behavior until a fine-tuned checkpoint is configured.
+        claims = [
+            normalize_claim_text(sentence)
+            for sentence in sentences
+            if is_investor_claim(sentence, manager)
+        ]
+        for claim in claims:
+            risk, score = classify_sentence_nli(claim, manager)
+            candidates.append((claim, risk, score))
+
+    if not candidates:
         pipeline_info["note"] = (
             "No investor-facing claims were detected, so risk scoring was skipped."
         )
@@ -322,11 +440,7 @@ def analyze_sentences(
         return [], summary_counts, pipeline_info
 
     classified_results = []
-
-    for idx, claim in enumerate(claims, start=1):
-        # Stage 1: score detected claims only.
-        risk, score = classify_sentence_nli(claim, manager)
-
+    for idx, (claim, risk, score) in enumerate(candidates, start=1):
         if risk == "Low":
             summary_counts["low_risk"] += 1
         elif risk == "Moderate":
@@ -334,9 +448,7 @@ def analyze_sentences(
         elif risk == "High":
             summary_counts["high_risk"] += 1
 
-        # Stage 2: low-risk claims get no question; Moderate/High get one.
         question = generate_objection_question(claim, risk, manager)
-
         classified_results.append(
             {
                 "id": idx,
