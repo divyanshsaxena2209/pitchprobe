@@ -34,9 +34,21 @@ def split_into_sentences(raw_text: str) -> List[str]:
         s = re.sub(r"^[•\-\*\d\.\)\s]+", "", s).strip()
         s = re.sub(r"\s+", " ", s)
 
-        # Exclude tiny fragments, pure numbers, or solitary header tokens (< 12 chars or < 3 words)
+        # Keep normal sentences plus compact but meaningful metric bullets
+        # such as "TAM: $5B" or "MRR $20k".
         words = s.split()
-        if len(s) >= 12 and len(words) >= 3:
+        has_business_metric = bool(
+            re.search(
+                r"\b(?:ARR|MRR|TAM|SAM|SOM|CAC|LTV|GMV|ROI|revenue|"
+                r"customers?|users?|growth|retention|churn|margin|sales)\b",
+                s,
+                re.IGNORECASE,
+            )
+            and re.search(r"[$€£₹%]|\b\d+(?:\.\d+)?\b", s)
+        )
+        if (len(s) >= 12 and len(words) >= 3) or (
+            has_business_metric and len(s) >= 6
+        ):
             sentences.append(s)
 
     return sentences
