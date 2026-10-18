@@ -5,6 +5,8 @@ import threading
 from typing import Dict, List, Optional, Tuple
 import torch
 
+from backend.claim_detector import document_warning_for_text, is_investor_claim
+
 # Suppress Hugging Face symlink warnings on Windows
 os.environ["HF_HUB_DISABLE_SYMLINKS_WARNING"] = "1"
 
@@ -259,18 +261,65 @@ def generate_objection_question(sentence: str, risk: str, manager: ModelManager)
         return "What concrete empirical evidence or customer metrics support this statement?"
 
 
-def analyze_sentences(sentences: List[str]) -> Tuple[List[Dict], Dict[str, int], Dict[str, str]]:
-    """Execute two-stage pipeline: Risk classification followed by gated investor question generation."""
+def analyze_sentences(
+    sentences: List[str],
+    raw_text: Optional[str] = None,
+) -> Tuple[List[Dict], Dict[str, int], Dict[str, str]]:
+    """Screen for investor claims, classify only claims, then gate questions."""
     manager = ModelManager.get_instance()
-
-    classified_results = []
     summary_counts = {"low_risk": 0, "moderate_risk": 0, "high_risk": 0}
 
-    for idx, sentence in enumerate(sentences, start=1):
-        # Stage 1: Risk Classification
-        risk, score = classify_sentence_nli(sentence, manager)
+    mode = (
+        "transformer_local"
+        if (manager.classifier_loaded and manager.generator_loaded)
+        else "calibrated_domain_heuristics"
+    )
+    pipeline_info = {
+        "classifier": manager.classifier_name,
+        "generator": manager.generator_name,
+        "mode": mode,
+        "note": (
+            "Claim-first screening filters non-claims before risk scoring; "
+            "investor questions are generated only for Moderate/High claims."
+        ),
+        "document_warning": None,
+    }
 
-        # Update summary counts
+    # Detect coursework/research documents at document level. Scoring individual
+    # sentences from those files would create misleading investor objections.
+    document_warning = document_warning_for_text(raw_text)
+    if document_warning:
+        pipeline_info["note"] = (
+            "Risk scoring was skipped because the document does not appear to "
+            "be a startup pitch deck."
+        )
+        pipeline_info["document_warning"] = document_warning
+        return [], summary_counts, pipeline_info
+
+    # Stage 0: filter non-claims. The risk classifier must never assign a risk
+    # tier simply because a sentence exists in the PDF.
+    claims = [
+        re.sub(r"\s+", " ", sentence).strip()
+        for sentence in sentences
+        if is_investor_claim(sentence, manager)
+    ]
+
+    if not claims:
+        pipeline_info["note"] = (
+            "No investor-facing claims were detected, so risk scoring was skipped."
+        )
+        pipeline_info["document_warning"] = (
+            "No investor-facing claims were detected. Upload a startup pitch deck "
+            "with product, market, traction, customer, or financial assertions."
+        )
+        return [], summary_counts, pipeline_info
+
+    classified_results = []
+
+    for idx, claim in enumerate(claims, start=1):
+        # Stage 1: score detected claims only.
+        risk, score = classify_sentence_nli(claim, manager)
+
         if risk == "Low":
             summary_counts["low_risk"] += 1
         elif risk == "Moderate":
@@ -278,28 +327,17 @@ def analyze_sentences(sentences: List[str]) -> Tuple[List[Dict], Dict[str, int],
         elif risk == "High":
             summary_counts["high_risk"] += 1
 
-        # Stage 2: Gated Question Generation (None for Low risk)
-        question = generate_objection_question(sentence, risk, manager)
+        # Stage 2: low-risk claims get no question; Moderate/High get one.
+        question = generate_objection_question(claim, risk, manager)
 
-        classified_results.append({
-            "id": idx,
-            "text": sentence,
-            "risk": risk,
-            "score": score,
-            "question": question,
-        })
-
-    mode = (
-        "transformer_local"
-        if (manager.classifier_loaded and manager.generator_loaded)
-        else "calibrated_domain_heuristics"
-    )
-
-    pipeline_info = {
-        "classifier": manager.classifier_name,
-        "generator": manager.generator_name,
-        "mode": mode,
-        "note": "Sentence-level risk stratification gates investor question generation per DA1 architecture.",
-    }
+        classified_results.append(
+            {
+                "id": idx,
+                "text": claim,
+                "risk": risk,
+                "score": score,
+                "question": question,
+            }
+        )
 
     return classified_results, summary_counts, pipeline_info
