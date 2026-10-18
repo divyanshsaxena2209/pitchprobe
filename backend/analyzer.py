@@ -268,7 +268,7 @@ def generate_objection_question(sentence: str, risk: str, manager: ModelManager)
 def analyze_sentences(
     sentences: List[str],
     raw_text: Optional[str] = None,
-) -> Tuple[List[Dict], Dict[str, int], Dict[str, str]]:
+) -> Tuple[List[Dict], Dict[str, int], Dict[str, object]]:
     """Screen for investor claims, classify only claims, then gate questions."""
     manager = ModelManager.get_instance()
     summary_counts = {"low_risk": 0, "moderate_risk": 0, "high_risk": 0}
