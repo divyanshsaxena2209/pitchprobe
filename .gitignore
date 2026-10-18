@@ -47,3 +47,6 @@ __pycache__/
 training/artifacts/
 training/data/claims.csv
 training/data/private/
+
+# Generated public-dataset mapping; recreate locally from source
+training/data/external_claims.csv
