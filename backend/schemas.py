@@ -6,7 +6,7 @@ class SentenceAnalysis(BaseModel):
     id: int
     text: str
     risk: str = Field(..., description="Risk tier: Low, Moderate, or High")
-    score: float = Field(..., description="Confidence score between 0.0 and 1.0")
+    score: float = Field(..., description="Relative model support score between 0.0 and 1.0; not a calibrated probability")
     question: Optional[str] = Field(
         None,
         description="Targeted investor counter-question for Moderate/High risk sentences, None for Low risk",
