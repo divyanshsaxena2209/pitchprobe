@@ -16,8 +16,12 @@ def split_into_sentences(raw_text: str) -> List[str]:
     if not raw_text or not raw_text.strip():
         return []
 
-    # Pre-clean excessive whitespace and common slide bullet noise
+    # Pre-clean excessive whitespace and common slide bullet noise.
     normalized_text = re.sub(r"[\r\t]+", " ", raw_text)
+    # Some PDFs omit spaces between text runs (for example, "OurPlatformIs").
+    # Restore recoverable CamelCase/acronym boundaries before sentence splitting.
+    normalized_text = re.sub(r"(?<=[a-z])(?=[A-Z])", " ", normalized_text)
+    normalized_text = re.sub(r"(?<=[A-Z])(?=[A-Z][a-z])", " ", normalized_text)
     # Replace slide boundary artifacts or long underscores/dashes
     normalized_text = re.sub(r"[-_=]{3,}", " ", normalized_text)
 
