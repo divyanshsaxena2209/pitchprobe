@@ -1,6 +1,7 @@
 import logging
+import time
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, File, UploadFile
+from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend.analyzer import ModelManager, analyze_sentences
@@ -67,34 +68,73 @@ def health_check():
 
 @app.post("/api/analyze", response_model=AnalyzeResponse)
 async def analyze_pitch_deck(file: UploadFile = File(...)):
-    """Analyze pitch deck PDF: extract text, segment sentences, classify risk, and generate investor objections."""
-    # 1. Validate & extract PDF text
-    raw_text = await extract_pdf_text(file)
+    """Analyze a PDF and log full tracebacks for unexpected failures."""
+    started = time.perf_counter()
+    filename = file.filename or "deck.pdf"
+    logger.info("Analysis request started: filename=%r", filename)
 
-    # 2. Sentence segmentation
-    sentences = split_into_sentences(raw_text)
-    if not sentences:
-        # Fallback if text couldn't be cleanly segmented into sentences
-        sentences = [s.strip() for s in raw_text.split("\n") if len(s.strip()) > 15]
+    try:
+        # 1. Validate & extract PDF text
+        raw_text = await extract_pdf_text(file)
+        logger.info(
+            "PDF text extracted: filename=%r characters=%d",
+            filename,
+            len(raw_text),
+        )
 
-    # 3. Two-stage analysis with risk gating
-    results, summary_counts, pipeline_info = analyze_sentences(sentences, raw_text=raw_text)
+        # 2. Sentence segmentation
+        sentences = split_into_sentences(raw_text)
+        if not sentences:
+            # Fallback if text couldn't be cleanly segmented into sentences
+            sentences = [
+                s.strip() for s in raw_text.split("\n") if len(s.strip()) > 15
+            ]
+        logger.info(
+            "PDF segmented: filename=%r segments=%d",
+            filename,
+            len(sentences),
+        )
 
-    sentence_models = [SentenceAnalysis(**item) for item in results]
-    summary_model = RiskSummary(
-        total_sentences=len(sentence_models),
-        low_risk=summary_counts["low_risk"],
-        moderate_risk=summary_counts["moderate_risk"],
-        high_risk=summary_counts["high_risk"],
-    )
+        # 3. Two-stage analysis with risk gating
+        results, summary_counts, pipeline_info = analyze_sentences(
+            sentences,
+            raw_text=raw_text,
+        )
 
-    return AnalyzeResponse(
-        filename=file.filename or "deck.pdf",
-        total_sentences=len(sentence_models),
-        summary=summary_model,
-        sentences=sentence_models,
-        pipeline_info=PipelineInfo(**pipeline_info),
-    )
+        sentence_models = [SentenceAnalysis(**item) for item in results]
+        summary_model = RiskSummary(
+            total_sentences=len(sentence_models),
+            low_risk=summary_counts["low_risk"],
+            moderate_risk=summary_counts["moderate_risk"],
+            high_risk=summary_counts["high_risk"],
+        )
+
+        response = AnalyzeResponse(
+            filename=filename,
+            total_sentences=len(sentence_models),
+            summary=summary_model,
+            sentences=sentence_models,
+            pipeline_info=PipelineInfo(**pipeline_info),
+        )
+        logger.info(
+            "Analysis complete: filename=%r scored_claims=%d elapsed_seconds=%.2f",
+            filename,
+            len(sentence_models),
+            time.perf_counter() - started,
+        )
+        return response
+    except HTTPException:
+        # PDF validation failures already contain a safe client-facing message.
+        raise
+    except Exception:
+        # Explicitly emit the traceback so the cause of an HTTP 500 is visible
+        # even when the installed Uvicorn version omits application tracebacks.
+        logger.exception(
+            "Unexpected analysis failure: filename=%r elapsed_seconds=%.2f",
+            filename,
+            time.perf_counter() - started,
+        )
+        raise
 
 
 if __name__ == "__main__":
