@@ -62,7 +62,7 @@ PitchProbe includes a four-label DeBERTa fine-tuning pipeline and a baseline eva
 
 ### Windows stability / CPU troubleshooting
 
-The backend launcher now keeps the selected port stable after the backend has once passed its health check. This avoids moving `BACKEND_URL` on every later runtime crash while Next.js may still be using the prior URL.
+The backend launcher advances to the next port after every failed candidate. It marks a port successful only after the child Uvicorn process itself logs that it is listening and that port's health endpoint responds; it does not mistake an older process on the same port for the new child. If a previously healthy backend later crashes, the launcher also advances to a new port and updates `BACKEND_URL`. Restart the Next.js dev server after that runtime port change so its rewrite configuration reloads the updated URL.
 
 If Python exits unexpectedly during model inference on Windows, test with CPU inference to isolate the CUDA/GPU runtime:
 
