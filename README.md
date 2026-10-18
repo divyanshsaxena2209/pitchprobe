@@ -58,3 +58,17 @@ npm run build
 ## 4. Model Fine-Tuning (Phase 1)
 
 PitchProbe includes a four-label DeBERTa fine-tuning pipeline and a baseline evaluator in [training/README.md](training/README.md). The first step is to create a human-reviewed, deck-separated dataset; do not train on unreviewed predictions from the current model. Private dataset files and trained checkpoints are ignored by Git.
+
+
+### Windows stability / CPU troubleshooting
+
+The backend launcher now keeps the selected port stable after the backend has once passed its health check. This avoids moving `BACKEND_URL` on every later runtime crash while Next.js may still be using the prior URL.
+
+If Python exits unexpectedly during model inference on Windows, test with CPU inference to isolate the CUDA/GPU runtime:
+
+```powershell
+$env:PITCHPROBE_DEVICE = "cpu"
+python .\start_backend.py
+```
+
+This affects the backend started from that PowerShell session and keeps the pretrained model weights unchanged; CPU inference may be slower. If CPU mode is stable, investigate the installed PyTorch/CUDA/driver stack before returning to automatic GPU selection. Remove the override in that terminal with `Remove-Item Env:PITCHPROBE_DEVICE` to return to automatic device selection.
