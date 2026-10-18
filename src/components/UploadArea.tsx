@@ -140,20 +140,19 @@ export default function UploadArea({ onResultsChange }: UploadAreaProps) {
       const formData = new FormData();
       formData.append("file", file);
 
-      // Connect to POST /api/analyze with graceful localhost fallback
-      let res: Response;
-      try {
-        res = await fetch("/api/analyze", {
-          method: "POST",
-          body: formData,
-        });
-      } catch {
-        // Fallback directly to localhost:8000 if Next.js proxy isn't available
-        res = await fetch("http://localhost:8000/api/analyze", {
-          method: "POST",
-          body: formData,
-        });
-      }
+      // Send long-running analysis directly to FastAPI. The Next.js rewrite
+      // proxy can reset very slow requests (CPU analysis of a full deck may
+      // take over two minutes). The launcher writes this port to .env.local;
+      // restart Next.js after the backend selects a different port.
+      const backendBaseUrl = process.env.NEXT_PUBLIC_BACKEND_URL?.replace(/\/+$/, "");
+      const analyzeUrl = backendBaseUrl
+        ? `${backendBaseUrl}/api/analyze`
+        : "/api/analyze";
+
+      const res = await fetch(analyzeUrl, {
+        method: "POST",
+        body: formData,
+      });
 
       if (!res.ok) {
         let errDetail = "Analysis request failed.";
@@ -173,7 +172,7 @@ export default function UploadArea({ onResultsChange }: UploadAreaProps) {
       const msg = err instanceof Error ? err.message : "An unexpected error occurred.";
       if (msg.includes("Failed to fetch") || msg.includes("NetworkError")) {
         setErrorMessage(
-          "Could not connect to the PitchProbe backend service. Please check that FastAPI is running on port 8000."
+          "Could not reach the PitchProbe backend. Check that it is running and that NEXT_PUBLIC_BACKEND_URL in .env.local matches BACKEND_URL, then restart Next.js."
         );
       } else {
         setErrorMessage(msg);
