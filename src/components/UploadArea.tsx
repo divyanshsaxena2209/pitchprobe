@@ -184,9 +184,9 @@ export default function UploadArea({ onResultsChange }: UploadAreaProps) {
   };
 
   const filteredSentences = analysisResult
-    ? analysisResult.sentences.filter((s) =>
-        riskFilter === "ALL" ? true : s.risk === riskFilter
-      )
+    ? analysisResult.sentences
+        .filter((s) => (riskFilter === "ALL" ? true : s.risk === riskFilter))
+        .sort((a, b) => b.score - a.score)
     : [];
 
   return (
