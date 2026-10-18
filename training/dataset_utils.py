@@ -122,3 +122,12 @@ def read_and_validate_dataset(
         )
     print("Deck leakage check: passed (each deck belongs to exactly one split).")
     return rows
+
+
+if __name__ == "__main__":
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Validate PitchProbe labeled claim data.")
+    parser.add_argument("--data-csv", default="training/data/claims.csv")
+    args = parser.parse_args()
+    read_and_validate_dataset(args.data_csv)
