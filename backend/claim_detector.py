@@ -18,36 +18,56 @@ DOCUMENT_WARNING = (
     "financial claims for a useful investor review."
 )
 
-ADMIN_DOCUMENT_MARKERS = [
-    r"\bcourse\s*code\b",
-    r"\bsubmission\s+deadline\b",
-    r"\bstudent\s+name\b",
-    r"\bregistration\s*(?:no\.?|number)\b",
-    r"\bcontribution\s+matrix\b",
-    r"\btotal\s+marks?\b",
-    r"\bassessment\s+rubric\b",
-    r"\bassignment\s+rubric\b",
-    r"\bacademic\s+year\s*/?\s*semester\b",
-    r"\bB\.?\s*Tech\b",
-    r"\bfaculty\b",
+STRONG_ADMIN_MARKERS = [
+    "coursecode",
+    "submissiondeadline",
+    "registrationno",
+    "contributionmatrix",
+    "totalmarks",
+    "assessmentrubric",
+    "assignmentrubric",
+    "evaluationrubric",
 ]
 
-RESEARCH_DOCUMENT_MARKERS = [
-    r"\bliterature survey\b",
-    r"\bresearch gaps?\b",
-    r"\bproposed system architecture\b",
-    r"\bevaluation metrics?\b",
-    r"\bbaseline comparison\b",
-    r"\breference formatting\b",
-    r"\bcontribution matrix\b",
-    r"\bmacro[- ]?f1\b",
-    r"\bbertscore\b",
-    r"\brouge[- ]?l\b",
-    r"\b(?:IEEE|ACL|EMNLP|arXiv)\b",
-    r"\bfree[- ]tier colab\b",
-    r"\bVRAM\b",
-    r"\bpapers?\s*\[\s*\d+",
-    r"\btable\s+\d+\s+(?:summarises|summarizes|shows|compares)\b",
+ADMIN_COMPACT_MARKERS = STRONG_ADMIN_MARKERS + [
+    "btech",
+    "faculty",
+    "academicyearsemester",
+    "studentname",
+]
+
+RESEARCH_COMPACT_MARKERS = [
+    "literaturesurvey",
+    "researchgap",
+    "proposedsystemarchitecture",
+    "evaluationmetrics",
+    "baselinecomparison",
+    "referenceformatting",
+    "contributionmatrix",
+    "macrof1",
+    "bertscore",
+    "rougel",
+    "emnlp",
+    "freetiercolab",
+    "vram",
+    "references",
+    "bibliography",
+]
+
+STRONG_BUSINESS_MARKERS = [
+    "revenue",
+    "arr",
+    "mrr",
+    "payingcustomers",
+    "customeracquisition",
+    "unit economics".replace(" ", ""),
+    "grossmargin",
+    "retention",
+    "churn",
+    "paidpilots",
+    "signedcontracts",
+    "salespipeline",
+    "runway",
 ]
 
 BUSINESS_TERMS = re.compile(
@@ -113,17 +133,24 @@ def document_warning_for_text(raw_text: Optional[str]) -> Optional[str]:
     if not raw_text or not raw_text.strip():
         return None
 
-    text = raw_text.lower()
-    admin_hits = sum(bool(re.search(pattern, text, re.IGNORECASE)) for pattern in ADMIN_DOCUMENT_MARKERS)
-    research_hits = sum(bool(re.search(pattern, text, re.IGNORECASE)) for pattern in RESEARCH_DOCUMENT_MARKERS)
+    # Compact matching catches PDF extraction artifacts such as
+    # "CourseCode", "SubmissionDeadline", and "ContributionMatrix".
+    compact = re.sub(r"[^a-z0-9]+", "", raw_text.lower())
+    strong_admin_hits = sum(marker in compact for marker in STRONG_ADMIN_MARKERS)
+    admin_hits = sum(marker in compact for marker in ADMIN_COMPACT_MARKERS)
+    research_hits = sum(marker in compact for marker in RESEARCH_COMPACT_MARKERS)
+    business_signal_hits = sum(
+        marker in compact for marker in STRONG_BUSINESS_MARKERS
+    )
 
-    # Two or more distinct administrative markers strongly suggest coursework.
-    # Academic markers require a higher threshold to avoid rejecting a technical
-    # startup deck that happens to mention a benchmark or architecture.
-    if admin_hits >= 2 or research_hits >= 6:
+    # Multiple specific coursework fields are strong evidence that the file
+    # is not a pitch deck. Research-heavy files need a higher threshold, and
+    # clear business/traction metrics protect technical startup decks.
+    if strong_admin_hits >= 2 or (admin_hits >= 4 and research_hits >= 3):
+        return DOCUMENT_WARNING
+    if research_hits >= 6 and business_signal_hits < 2:
         return DOCUMENT_WARNING
     return None
-
 
 def is_obvious_non_claim(text: str) -> bool:
     """Remove headings, references, administrative details, and research noise."""
