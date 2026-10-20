@@ -50,3 +50,18 @@ Only after evaluation, create a separate pull request proposing integration. Inc
 - FinQA: https://huggingface.co/datasets/ibm-research/finqa (financial-report QA; auxiliary only, not investor-objection ground truth).
 
 A model that improves on these external proxy labels is not thereby validated on real startup pitch decks. Report that limitation whenever sharing results.
+
+### Observed Phase C comparison (Colab, 2026-10-21)
+
+On the official 563-pair test split, the published [`copenlu/scientific-exaggeration-detection`](https://huggingface.co/copenlu/scientific-exaggeration-detection) strength model was run in inference-only mode on each press-release and abstract conclusion. The sign of the difference between its predicted four-level strengths generated the final paired label.
+
+| Approach | Accuracy | Macro-F1 |
+|---|---:|---:|
+| Majority baseline (`same`) | 0.6128 | 0.2533 |
+| Fine-tuned DeBERTa pair classifier | 0.5542 | 0.2875 |
+| Published claim-strength model + gap rule | **0.6785** | **0.6217** |
+
+For the published strength model, class F1 was 0.761 for `same`, 0.614 for `exaggerates`, and 0.490 for `downplays`. Confusion matrix (rows actual; columns predicted; order `same`, `exaggerates`, `downplays`): `[[252,49,44],[30,81,11],[35,12,49]]`.
+
+Interpret this as a strong in-domain reference baseline, not startup-pitch validation. The released model was designed for causal claim-strength classification and its comparison on scientific press-release/abstract pairs; this benchmark result does not establish generalization to startup claims. Keep it isolated from the app and master branch. Preserve the local Colab artifacts and review the model/dataset licensing terms before any redistribution.
+
