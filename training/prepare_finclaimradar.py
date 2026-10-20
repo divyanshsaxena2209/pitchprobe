@@ -17,6 +17,8 @@ from pathlib import Path
 from typing import Any, Dict, Iterable, List, Tuple
 
 from datasets import load_dataset
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.model_selection import GroupShuffleSplit
 
 from training.dataset_utils import LABELS, read_and_validate_dataset
@@ -127,6 +129,69 @@ def _deduplicate_exact_text(rows: List[Dict[str, str]]) -> List[Dict[str, str]]:
     return deduplicated
 
 
+def _merge_near_duplicate_groups(
+    rows: List[Dict[str, str]],
+    threshold: float = 0.70,
+) -> List[Dict[str, str]]:
+    """Keep highly similar claims in the same split to reduce template leakage.
+
+    This conservative character n-gram cosine threshold is an audit heuristic,
+    not a semantic-equivalence label. It groups examples for splitting but does
+    not delete them or change their labels.
+    """
+    if len(rows) < 2:
+        return rows
+
+    texts = [re.sub(r"\s+", " ", row["text"]).strip() for row in rows]
+    vectorizer = TfidfVectorizer(
+        analyzer="char_wb",
+        ngram_range=(3, 5),
+        min_df=1,
+        max_features=50000,
+    )
+    matrix = vectorizer.fit_transform(texts)
+    similarities = cosine_similarity(matrix, dense_output=True)
+
+    parents: Dict[str, str] = {}
+
+    def find(group_id: str) -> str:
+        parents.setdefault(group_id, group_id)
+        while parents[group_id] != group_id:
+            parents[group_id] = parents[parents[group_id]]
+            group_id = parents[group_id]
+        return group_id
+
+    def union(left: str, right: str) -> None:
+        left_root = find(left)
+        right_root = find(right)
+        if left_root == right_root:
+            return
+        first, second = sorted((left_root, right_root))
+        parents[second] = first
+
+    for row in rows:
+        find(row["group_id"])
+
+    near_duplicate_pairs = 0
+    for i in range(len(rows)):
+        for j in range(i + 1, len(rows)):
+            if float(similarities[i, j]) >= threshold:
+                near_duplicate_pairs += 1
+                union(rows[i]["group_id"], rows[j]["group_id"])
+
+    original_group_count = len({row["group_id"] for row in rows})
+    for row in rows:
+        row["group_id"] = find(row["group_id"])
+    final_group_count = len({row["group_id"] for row in rows})
+
+    print(
+        f"Near-duplicate grouping: {near_duplicate_pairs} pair(s) at character "
+        f"TF-IDF cosine >= {threshold:.2f}; source groups reduced from "
+        f"{original_group_count} to {final_group_count} split groups."
+    )
+    return rows
+
+
 def _split_by_group(rows: List[Dict[str, str]]) -> List[Dict[str, str]]:
     """Create reproducible 80/10/10 splits without separating related groups."""
     groups = [row["group_id"] for row in rows]
@@ -226,6 +291,9 @@ def prepare_dataset(output_csv: str) -> Tuple[int, Dict[str, int]]:
             "No rows remain after exact-text deduplication and conflicting-label removal."
         )
 
+    # Group near-identical templates before splitting so a rewritten variant
+    # is less likely to appear in train while its sibling appears in test.
+    mapped_rows = _merge_near_duplicate_groups(mapped_rows, threshold=0.70)
     output_rows = _split_by_group(mapped_rows)
     path = Path(output_csv)
     path.parent.mkdir(parents=True, exist_ok=True)
