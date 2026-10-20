@@ -177,3 +177,34 @@ Individual strength accuracy reported by the evaluation cell: press-release stre
 - This task concerns scientific/health press-release conclusions versus abstracts, not startup pitch decks or investor claim risk. It must not be integrated into the PitchProbe application without separate task-specific validation.
 - The dataset card lists GPL-3.0 for the dataset. Review applicable dataset and model licenses before redistributing data or model artifacts.
 
+## Startup-risk and investor-question next steps (research-only)
+
+### Current dataset decision
+
+A current source scan did **not** identify a sufficiently sized, human-labelled startup-pitch dataset with PitchProbe's exact LOW/MODERATE/HIGH risk definitions. Do not treat FinClaimRadar's evidentiary-basis labels as gold startup risk labels. The [Startup Investor Falsification Question Bank](https://huggingface.co/datasets/mheilimo/startup-investor-falsification-question-bank) is more directly relevant to question quality: it provides 48 review prompts across 12 dimensions, with an evidence request, contradiction signal and stage note. Its card lists **CC BY 4.0**; attribute Playful Pixels Oy and link the license when redistributing/adapting the source.
+
+### Question-bank retrieval prototype
+
+training/question_bank_router.py provides a training-only retrieval baseline; it does not use a generative model or fine-tune on the 48 questions. It routes common investor claim topics to a review dimension, then ranks source questions using TF-IDF over dimension, claim type, question, evidence request and contradiction signal. It returns the original prompt plus supporting evidence fields. A retrieval match is a suggestion for reviewer approval, not verification or truth scoring.
+
+Run the unit checks:
+
+    python -m pytest training/test_question_bank_router.py -q
+
+To retrieve prompts for a CSV with a claim column:
+
+    python -m training.question_bank_router --claims-csv training/data/example_claims.csv --output-csv training/artifacts/question_bank_matches.csv --top-k 3
+
+The default source URL is pinned to the dataset's published revision f39e258288f16c6f85dc40e67d38b9e90eff1426. The prototype needs human evaluation for claim-specific relevance and question usefulness before application integration.
+
+### Create a human-reviewed risk-label sheet
+
+training/create_risk_review_sheet.py samples only rows in the CSV's training split and adds blank annotation fields. It intentionally keeps the original proxy label visible for audit, but the annotator must assign labels independently using the rubric. A second review/adjudication column is provided. NEEDS_CONTEXT means not enough context to label fairly and should not silently be converted into a risk class.
+
+Run its checks and generate the worksheet:
+
+    python -m pytest training/test_create_risk_review_sheet.py -q
+    python -m training.create_risk_review_sheet --input-csv training/data/external_claims_neardedup.csv --output-csv training/data/manual_risk_review.csv --sample-size 60
+
+This creates an annotation worksheet, **not** a validated benchmark. FinClaimRadar is still a financial-claim proxy dataset rather than real startup pitch-deck claims, and its card lists CC BY-SA 4.0. The next credible classifier experiment should use independently reviewed labels, preserve source-group splits, report inter-annotator agreement where feasible, and retain a fully untouched test set. Do not fine-tune or integrate based on the original mapped proxy labels alone.
+
