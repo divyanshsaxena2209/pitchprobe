@@ -191,9 +191,11 @@ Run the unit checks:
 
     python -m pytest training/test_question_bank_router.py -q
 
-To retrieve prompts for a CSV with a claim column:
+To retrieve prompts for a CSV with a `claim` column, start with the committed seven-claim smoke-test file:
 
-    python -m training.question_bank_router --claims-csv training/data/example_claims.csv --output-csv training/artifacts/question_bank_matches.csv --top-k 3
+    python -m training.question_bank_router --claims-csv training/data/question_router_smoke_claims.csv --output-csv training/artifacts/question_bank_smoke_matches.csv --top-k 1
+
+For a wider review, set `--top-k 3` and use your own claim CSV. Inspect whether the returned question, evidence request, and contradiction signal fit each claim; similarity scores are ranking aids, not evidence that a claim is true.
 
 The default source URL is pinned to the dataset's published revision f39e258288f16c6f85dc40e67d38b9e90eff1426. The prototype needs human evaluation for claim-specific relevance and question usefulness before application integration.
 
