@@ -26,6 +26,14 @@ This branch, finetuning-lab, is an isolated research workspace based on the curr
 - Compare per-class precision, recall and F1, macro-F1, and the confusion matrix against the baseline.
 - Do not deploy based solely on training loss or a single aggregate score.
 
+### Phase C — Pairwise exaggeration research
+
+- Source: [Scientific Exaggeration Detection](https://huggingface.co/datasets/copenlu/scientific-exaggeration-detection), labeled GPL-3.0 by its dataset card.
+- Task: given both a press-release conclusion and its scientific-abstract conclusion, predict `same`, `exaggerates`, or `downplays`.
+- Use the official 100-row train split only for fitting and grouped internal validation; reserve the official 563-row test split for final evaluation only.
+- Keep the task-specific checkpoint separate from the FinClaimRadar risk classifier. This experiment measures scientific/health press-release exaggeration and is not startup-pitch risk validation.
+- Keep a licence and attribution record and review GPL-3.0 obligations before redistributing derived data or artifacts.
+
 ### Phase C — Question-generation research
 - Keep the application's targeted-question fallback unchanged.
 - Treat the Startup Investor Falsification Question Bank (CC BY 4.0) as an external question source, not a ready-made claim/question training set.
