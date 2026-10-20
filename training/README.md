@@ -120,3 +120,20 @@ python .\start_backend.py
 ```
 
 Remove or change the environment variable in the same terminal before restarting the backend.
+
+
+## Paired exaggeration-detection experiment (separate task)
+
+This experiment is deliberately separate from the FinClaimRadar risk classifier. It uses the public [Scientific Exaggeration Detection dataset](https://huggingface.co/datasets/copenlu/scientific-exaggeration-detection), listed as GPL-3.0 by its dataset card. Review GPL-3.0 requirements before redistributing derived data or model artifacts. The dataset contains paired \`press_release_conclusion\` and \`abstract_conclusion\` text with \`same\`, \`exaggerates\`, or \`downplays\` labels. It is a scientific/health communication benchmark, not a startup-pitch dataset.
+
+The script uses the official 100-row train split, creates a grouped internal train/validation split by \`original_file_id\`, and reserves the official 563-row test split for final evaluation only. It refuses to continue if source IDs overlap between official train and test. It resets the task-specific three-class head while reusing the pretrained DeBERTa encoder. It reports a majority-class baseline, per-class metrics, confusion matrix, and test predictions.
+
+From Colab's repository root:
+
+\`\`\`bash
+python -m pytest training/test_exaggeration_pair.py -q
+python -m training.train_exaggeration_pair --output-dir training/artifacts/pitchprobe-exaggeration-pair
+\`\`\`
+
+The run should take a few minutes on a T4 GPU, subject to Colab availability. Outputs go to \`training/artifacts/pitchprobe-exaggeration-pair/\` (model/tokenizer, \`experiment_metrics.json\`, \`classification_report.json\`, \`confusion_matrix.json\`, \`majority_baseline_report.json\`, and \`test_predictions.csv\`). They are ignored by Git. Do not use the official test split for checkpoint selection, and do not merge this model into the application. Its scores measure scientific press-release exaggeration, not pitch-deck claim risk.
+
