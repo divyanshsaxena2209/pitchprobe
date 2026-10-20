@@ -34,6 +34,29 @@ BASE_MODEL = "cross-encoder/nli-deberta-v3-base"
 SEED = 42
 
 
+def reset_task_head(model):
+    """Reinitialize the task-specific pooling/classification head after loading.
+
+    cross-encoder/nli-deberta-v3-base also has three output classes, so passing
+    num_labels=3 does not trigger a shape mismatch. Explicitly resetting the
+    pooler/classifier prevents NLI output weights from being silently reused
+    as LOW/MODERATE/HIGH weights.
+    """
+    reset_names = []
+    for name in ("pooler", "classifier", "score"):
+        module = getattr(model, name, None)
+        if isinstance(module, torch.nn.Module):
+            module.apply(model._init_weights)
+            reset_names.append(name)
+
+    if "classifier" not in reset_names and "score" not in reset_names:
+        raise RuntimeError(
+            "Could not find a task-specific classifier/score module to reset; "
+            "refusing to start training with an unverified output head."
+        )
+    return reset_names
+
+
 def compute_metrics(eval_prediction):
     logits, labels = eval_prediction
     predictions = np.argmax(logits, axis=-1)
@@ -105,6 +128,14 @@ def main() -> None:
         label2id=label2id,
         ignore_mismatched_sizes=True,
     )
+    reset_modules = reset_task_head(model)
+    print(
+        "Reinitialized task-specific head modules: "
+        + ", ".join(reset_modules)
+        + " (encoder weights remain pretrained)."
+    )
+    model.config.id2label = id2label
+    model.config.label2id = label2id
     model.config.problem_type = "single_label_classification"
 
     train_dataset = to_dataset(train_rows, tokenizer, label2id)
