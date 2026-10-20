@@ -191,7 +191,7 @@ Run the unit checks:
 
     python -m pytest training/test_question_bank_router.py -q
 
-To retrieve prompts for a CSV with a `claim` column, start with the committed seven-claim smoke-test file:
+To retrieve prompts for a CSV with a `claim` column, start with the committed six-claim smoke-test file:
 
     python -m training.question_bank_router --claims-csv training/data/question_router_smoke_claims.csv --output-csv training/artifacts/question_bank_smoke_matches.csv --top-k 1
 
