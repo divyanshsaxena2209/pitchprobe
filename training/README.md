@@ -137,3 +137,43 @@ python -m training.train_exaggeration_pair --output-dir training/artifacts/pitch
 
 The run should take a few minutes on a T4 GPU, subject to Colab availability. Outputs go to \`training/artifacts/pitchprobe-exaggeration-pair/\` (model/tokenizer, \`experiment_metrics.json\`, \`classification_report.json\`, \`confusion_matrix.json\`, \`majority_baseline_report.json\`, and \`test_predictions.csv\`). They are ignored by Git. Do not use the official test split for checkpoint selection, and do not merge this model into the application. Its scores measure scientific press-release exaggeration, not pitch-deck claim risk.
 
+## Published scientific claim-strength baseline (Colab results, 2026-10-21)
+
+A second, inference-only benchmark used the published model [`copenlu/scientific-exaggeration-detection`](https://huggingface.co/copenlu/scientific-exaggeration-detection). The model card describes it as a claim-strength predictor intended to compare the strength of two scientific sentences; the underlying paper evaluates this strategy for scientific press-release exaggeration ([Wright & Augenstein, EMNLP 2021](https://arxiv.org/abs/2108.13493)).
+
+Method: independently classify the `press_release_conclusion` and `abstract_conclusion` into the four ordered strength levels (0 = no relationship, 1 = correlation, 2 = conditional causation, 3 = causation), then compare predicted levels: release strength above abstract = `exaggerates`, below = `downplays`, equal = `same`. The official 563-row test split was checked for row alignment against the saved test predictions before evaluation. This run performed inference only and did not change the trained DeBERTa pairwise checkpoint.
+
+### Observed metrics
+
+| Method | Accuracy | Macro-F1 |
+|---|---:|---:|
+| Majority baseline (always `same`) | 0.6128 | 0.2533 |
+| Fine-tuned DeBERTa pair classifier | 0.5542 | 0.2875 |
+| Published strength classifier + strength-gap rule | **0.6785** | **0.6217** |
+
+Published strength-classifier results by paired label:
+
+| Label | Precision | Recall | F1 | Support |
+|---|---:|---:|---:|---:|
+| `same` | 0.795 | 0.730 | 0.761 | 345 |
+| `exaggerates` | 0.570 | 0.664 | 0.614 | 122 |
+| `downplays` | 0.471 | 0.510 | 0.490 | 96 |
+
+Confusion matrix (rows = actual; columns = predicted; order `same`, `exaggerates`, `downplays`):
+
+```text
+              same  exaggerates  downplays
+same           252           49         44
+exaggerates     30           81         11
+downplays       35           12         49
+```
+
+Individual strength accuracy reported by the evaluation cell: press-release strength 0.6785, abstract strength 0.7353, combined 0.7069. Artifacts were saved locally in Colab as `published_strength_model_predictions.csv` and `published_strength_model_metrics.json` under `training/artifacts/pitchprobe-exaggeration-pair/`; generated outputs are ignored by Git.
+
+### Interpretation and caveats
+
+- This is the strongest result so far for this **scientific exaggeration benchmark**, improving on both the majority baseline and the fine-tuned pair classifier.
+- The model is an existing published model built for causal-claim-strength comparison and related scientific exaggeration detection. Treat this as a reproduction/reference baseline on the same task domain, not as evidence of broad out-of-domain generalization.
+- This task concerns scientific/health press-release conclusions versus abstracts, not startup pitch decks or investor claim risk. It must not be integrated into the PitchProbe application without separate task-specific validation.
+- The dataset card lists GPL-3.0 for the dataset. Review applicable dataset and model licenses before redistributing data or model artifacts.
+
