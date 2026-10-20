@@ -67,6 +67,51 @@ def infer_dimension(claim: str) -> Optional[str]:
     return None
 
 
+def expand_retrieval_query(claim: str) -> str:
+    """Add narrow retrieval hints for measured benefits and price/unit-economics claims.
+
+    These terms affect ranking only. The original claim is preserved in every
+    returned result, and the added terms are not treated as evidence.
+    """
+    text = re.sub(r"\s+", " ", str(claim or "")).lower()
+    expansions = []
+
+    benefit_claim = re.search(
+        r"\b(?:save|saves|saved|saving|reduce|reduces|reduced|improve|improves|"
+        r"improved|increase|increases|increased|faster|time saved|cost savings|"
+        r"productivity|customer outcome)\b",
+        text,
+    )
+    quantified_outcome = re.search(
+        r"\b(?:\d+(?:\.\d+)?|one|two|three|four|five|six|seven|eight|nine|ten|"
+        r"eleven|twelve|twenty|thirty|forty|fifty)\s*(?:%|percent|hours?|minutes?|"
+        r"seconds?|days?|weeks?|months?|dollars?|customers?|users?)\b",
+        text,
+    )
+    if benefit_claim and quantified_outcome:
+        expansions.append(
+            "measured customer outcome benefit savings time saved baseline comparison "
+            "before after measurement window sample size exclusions raw data self-reported "
+            "survey pilot cohort control group"
+        )
+
+    pricing_or_margin = re.search(
+        r"(?:[$₹€£]\s*\d|\bper\s+(?:seat|user|month|year)\b|"
+        r"\b(?:pricing|price tier|gross margin|unit economics|contribution margin|"
+        r"cost of goods sold|cogs|cost per seat|subscription)\b)",
+        text,
+    )
+    if pricing_or_margin:
+        expansions.append(
+            "pricing seat subscription recurring monthly price tier list price realized price "
+            "gross margin variable cost cost of goods sold COGS cost per seat hosting cloud "
+            "infrastructure inference support payment processing discounts usage assumptions "
+            "contribution margin cost breakdown"
+        )
+
+    return " ".join([str(claim or "")] + expansions)
+
+
 class InvestorQuestionRetriever:
     def __init__(self, bank: pd.DataFrame):
         missing = sorted(set(REQUIRED_COLUMNS) - set(bank.columns))
@@ -108,10 +153,16 @@ class InvestorQuestionRetriever:
         if top_k < 1:
             raise ValueError("top_k must be >= 1")
 
+        # Preserve the raw claim-only score for diagnostics, but rank with a
+        # narrowly expanded query when a numeric customer outcome or pricing claim
+        # needs evidence terms that often do not appear verbatim in the claim.
         query = self.vectorizer.transform([claim])
         similarities = cosine_similarity(query, self.matrix).ravel()
+        ranking_query_text = expand_retrieval_query(claim)
+        ranking_query = self.vectorizer.transform([ranking_query_text])
+        ranking_similarities = cosine_similarity(ranking_query, self.matrix).ravel()
         routed = infer_dimension(claim)
-        scores = similarities.copy()
+        scores = ranking_similarities.copy()
 
         if routed:
             in_dimension = self.bank["dimension"].eq(routed).to_numpy()
@@ -125,7 +176,7 @@ class InvestorQuestionRetriever:
         else:
             candidates = list(range(len(self.bank)))
 
-        # Stable sorting means results remain reproducible for equal scores.
+        # Stable sorting means results remain reproducible for equal ranking scores.
         ranked = sorted(candidates, key=lambda i: (-float(scores[i]), i))[:top_k]
         results: List[Dict[str, object]] = []
         for index in ranked:
