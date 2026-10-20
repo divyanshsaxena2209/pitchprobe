@@ -50,3 +50,6 @@ training/data/private/
 
 # Generated public-dataset mapping; recreate locally from source
 training/data/external_claims*.csv
+# Human annotation sheets and local question-bank review data
+training/data/manual_risk_review*.csv
+training/data/question_bank*.csv
