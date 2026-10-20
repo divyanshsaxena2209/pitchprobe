@@ -51,7 +51,7 @@ pip install -r training/requirements.txt
 python -m training.prepare_finclaimradar --output-csv training/data/external_claims.csv
 ```
 
-This downloads FinClaimRadar from Hugging Face, maps its categories to `LOW`/`MODERATE`/`HIGH`, removes exact duplicate text before splitting, and drops duplicated texts whose mapped labels conflict because an identical input cannot provide a consistent single-label target. If duplicate text connects multiple source/counterfactual groups, those groups are merged. It also merges rows into the same split group when character TF-IDF cosine similarity is at least 0.70. This is a conservative near-template grouping heuristic, not proof that claims have identical meaning; it does not delete these near-duplicate rows. The validator then checks for exact cross-split duplicates and group leakage.
+This downloads FinClaimRadar from Hugging Face, maps its categories to `LOW`/`MODERATE`/`HIGH`, removes exact duplicate text before splitting, and drops duplicated texts whose mapped labels conflict because an identical input cannot provide a consistent single-label target. If duplicate text connects multiple source/counterfactual groups, those groups are merged. It also merges rows into the same split group when character TF-IDF cosine similarity is at least 0.65. This is a conservative near-template grouping heuristic, not proof that claims have identical meaning; it does not delete these near-duplicate rows. The validator then checks for exact cross-split duplicates and group leakage.
 
 ### 3. Measure the original classifier first
 
