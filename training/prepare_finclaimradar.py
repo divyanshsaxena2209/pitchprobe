@@ -61,6 +61,72 @@ def _map_label(source_label: str) -> str:
         ) from exc
 
 
+def _deduplicate_exact_text(rows: List[Dict[str, str]]) -> List[Dict[str, str]]:
+    """Deduplicate identical inputs and exclude texts with conflicting labels.
+
+    If duplicate text occurs in different source groups, merge those groups
+    before splitting so related material cannot leak across train/validation/test.
+    """
+    by_text: Dict[str, List[Dict[str, str]]] = {}
+    parents: Dict[str, str] = {}
+
+    def find(group_id: str) -> str:
+        parents.setdefault(group_id, group_id)
+        while parents[group_id] != group_id:
+            parents[group_id] = parents[parents[group_id]]
+            group_id = parents[group_id]
+        return group_id
+
+    def union(left: str, right: str) -> None:
+        left_root = find(left)
+        right_root = find(right)
+        if left_root == right_root:
+            return
+        # Deterministic root to make output repeatable across runs.
+        first, second = sorted((left_root, right_root))
+        parents[second] = first
+
+    for row in rows:
+        key = re.sub(r"\s+", " ", row["text"]).strip().casefold()
+        by_text.setdefault(key, []).append(row)
+        find(row["group_id"])
+
+    for duplicates in by_text.values():
+        if len(duplicates) > 1:
+            base_group = duplicates[0]["group_id"]
+            for duplicate in duplicates[1:]:
+                union(base_group, duplicate["group_id"])
+
+    # Resolve group roots after all unions, including chains of duplicated text.
+    for row in rows:
+        row["group_id"] = find(row["group_id"])
+
+    deduplicated: List[Dict[str, str]] = []
+    duplicate_rows_removed = 0
+    conflicting_texts_dropped = 0
+
+    for key, duplicates in by_text.items():
+        labels = {row["label"] for row in duplicates}
+        if len(labels) > 1:
+            # One text cannot supervise a single-input classifier with two labels.
+            conflicting_texts_dropped += 1
+            duplicate_rows_removed += len(duplicates)
+            continue
+
+        # Keep one instance of exact text; all source groups have already been
+        # merged so any remaining rows from those groups stay in a single split.
+        chosen = dict(duplicates[0])
+        chosen["group_id"] = find(chosen["group_id"])
+        deduplicated.append(chosen)
+        duplicate_rows_removed += len(duplicates) - 1
+
+    print(
+        f"Exact-text deduplication: removed {duplicate_rows_removed} duplicate/ambiguous rows; "
+        f"dropped {conflicting_texts_dropped} text(s) with conflicting risk labels."
+    )
+    return deduplicated
+
+
 def _split_by_group(rows: List[Dict[str, str]]) -> List[Dict[str, str]]:
     """Create reproducible 80/10/10 splits without separating related groups."""
     groups = [row["group_id"] for row in rows]
@@ -153,6 +219,12 @@ def prepare_dataset(output_csv: str) -> Tuple[int, Dict[str, int]]:
 
     if not mapped_rows:
         raise ValueError("No usable claim_text rows found in the external dataset.")
+
+    mapped_rows = _deduplicate_exact_text(mapped_rows)
+    if not mapped_rows:
+        raise ValueError(
+            "No rows remain after exact-text deduplication and conflicting-label removal."
+        )
 
     output_rows = _split_by_group(mapped_rows)
     path = Path(output_csv)
