@@ -43,7 +43,7 @@ REQUIRED_COLUMNS = [
 # "we reached $2M ARR" being matched only because another question mentions
 # "customer value" or "market" in its evidence fields.
 DIMENSION_RULES = [
-    ("Fundability", r"\b(?:fundrais(?:e|ing)|raising capital|funding ask|investment ask|series [a-d]|use of funds|next round|runway from this raise)\b"),
+    ("Fundability", r"\b(?:fundrais(?:e|ing)|rais(?:e|ing)\s+(?:\$|\d|capital|funds|a)|raising capital|funding ask|funding|investment ask|series [a-d]|use of funds|next round|runway from this raise)\b"),
     ("Financials", r"\b(?:revenue|arr|mrr|cac|ltv|gross margin|unit economics|burn rate|runway|valuation|ebitda|profit|pricing|price tier|payback|forecast|financial plan|cost per|conversion rate|churn|renewal|arpu)\b"),
     ("Market", r"\b(?:tam|sam|som|market size|market share|market estimate|market opportunity|addressable market|beachhead|market penetration|target segment|demand|buyer demand)\b"),
     ("Competitors", r"\b(?:competitors?|competition|incumbents?|competitive advantage|moat|market leader|switching costs|copy|copied|bundl(?:e|ing))\b"),
