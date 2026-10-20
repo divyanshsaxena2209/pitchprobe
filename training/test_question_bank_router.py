@@ -3,6 +3,7 @@ import pytest
 
 from training.question_bank_router import (
     InvestorQuestionRetriever,
+    expand_retrieval_query,
     infer_dimension,
 )
 
@@ -28,18 +29,21 @@ def test_dimension_router_covers_common_investor_claims():
 
 def make_bank():
     rows = []
-    for index, (dimension, claim_type, question) in enumerate([
-        ("Financials", "unit economics", "Which supplier quotes support the stated gross margin?"),
-        ("Market", "market definition", "What bottom-up assumptions support this market estimate?"),
-        ("Offering", "value claim", "What baseline and measurement window support this customer benefit?"),
-        ("Competitors", "competitive moat", "What evidence shows customers would switch from competitors?"),
-    ], start=1):
+    examples = [
+        ("Financials", "unit economics", "Which supplier quotes support the stated gross margin?", "supplier quotes; raw result; date"),
+        ("Market", "market definition", "What bottom-up assumptions support this market estimate?", "eligible buyers; geography; price; adoption"),
+        ("Offering", "measured value claim", "What baseline and measurement window support this customer benefit?", "baseline; measurement window; sample size; exclusions; raw result"),
+        ("Competitors", "competitive moat", "What evidence shows customers would switch from competitors?", "customer interviews; procurement shortlists; alternatives"),
+        ("Offering", "product capability", "Can you demonstrate the supported use cases with a product walkthrough?", "supported-use list; unsupported-use list; product walkthrough"),
+        ("Financials", "pricing and gross margin", "At this seat price, which variable costs are included in gross margin?", "price per seat per month; COGS; hosting; inference; support; payment fees; usage; gross margin formula"),
+    ]
+    for index, (dimension, claim_type, question, evidence) in enumerate(examples, start=1):
         rows.append({
             "question_id": f"Q-{index}",
             "dimension": dimension,
             "claim_type": claim_type,
             "falsification_question": question,
-            "evidence_to_request": "Raw result, sample, exclusions and date",
+            "evidence_to_request": evidence,
             "contradiction_signal": "The result disappears under an alternate assumption",
             "decision_state_if_unresolved": "open question",
             "founder_repair_action": "Add evidence and state its limit",
@@ -65,3 +69,38 @@ def test_short_claim_rejected():
     retriever = InvestorQuestionRetriever(make_bank())
     with pytest.raises(ValueError):
         retriever.retrieve("ARR 2M")
+
+
+
+def test_query_expansion_targets_quantified_outcomes_and_pricing():
+    outcome_query = expand_retrieval_query(
+        "Our product saves customer-support teams four hours per week, based on 20 pilot interviews."
+    ).lower()
+    pricing_query = expand_retrieval_query(
+        "We charge $99 per seat per month and expect an 85% gross margin at scale."
+    ).lower()
+
+    assert "measurement window" in outcome_query
+    assert "sample size" in outcome_query
+    assert "cost of goods sold" in pricing_query
+    assert "inference" in pricing_query
+
+
+def test_measured_customer_saving_prefers_baseline_over_generic_product_walkthrough():
+    retriever = InvestorQuestionRetriever(make_bank())
+    result = retriever.retrieve(
+        "Our product saves customer-support teams four hours per week, based on 20 pilot interviews.",
+        top_k=1,
+    )
+    assert result[0]["claim_type"] == "measured value claim"
+    assert "measurement window" in result[0]["evidence_to_request"]
+
+
+def test_price_and_gross_margin_claim_prefers_cost_breakdown():
+    retriever = InvestorQuestionRetriever(make_bank())
+    result = retriever.retrieve(
+        "We charge $99 per seat per month and expect an 85% gross margin at scale.",
+        top_k=1,
+    )
+    assert result[0]["claim_type"] == "pricing and gross margin"
+    assert "cost of goods sold" in result[0]["evidence_to_request"]
