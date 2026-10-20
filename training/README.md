@@ -173,7 +173,7 @@ Individual strength accuracy reported by the evaluation cell: press-release stre
 ### Interpretation and caveats
 
 - This is the strongest result so far for this **scientific exaggeration benchmark**, improving on both the majority baseline and the fine-tuned pair classifier.
-- The model is an existing published model built for causal-claim-strength comparison and related scientific exaggeration detection. Treat this as a reproduction/reference baseline on the same task domain, not as evidence of broad out-of-domain generalization.
+- The model is an existing published model built for causal-claim-strength comparison and related scientific exaggeration detection. The authors state that this benchmark's test file was used in the experiments reported in their paper, so treat these numbers as an in-domain reproduction/reference baseline—not an independent blind test of the published model, and not evidence of broad out-of-domain generalization.
 - This task concerns scientific/health press-release conclusions versus abstracts, not startup pitch decks or investor claim risk. It must not be integrated into the PitchProbe application without separate task-specific validation.
 - The dataset card lists GPL-3.0 for the dataset. Review applicable dataset and model licenses before redistributing data or model artifacts.
 
