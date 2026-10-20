@@ -10,7 +10,7 @@ from training.question_bank_router import (
 def test_dimension_router_covers_common_investor_claims():
     examples = {
         "We reached $2M ARR with 72% gross margin.": "Financials",
-        "Our TAM is $8B across three markets.": "Financials",  # financial term priority
+        "Our TAM is $8B across three markets.": "Market",  # TAM is market sizing, not financial performance
         "Our competitors cannot copy our patented IP moat.": "Competitors",
         "Our AI model achieves 98% accuracy in a benchmark.": "Technology & IP",
         "We are raising $3M to fund the next product milestone.": "Fundability",
