@@ -76,7 +76,7 @@ def read_and_validate_dataset(
 
     decks_by_split = defaultdict(set)
     split_by_deck = {}
-    normalized_text_by_split = defaultdict(set)
+    normalized_text_seen = {}
     counts = Counter()
     for row in rows:
         deck_id, split = row["deck_id"], row["split"]
@@ -90,12 +90,15 @@ def read_and_validate_dataset(
         split_by_deck[deck_id] = split
         decks_by_split[split].add(deck_id)
         normalized_text = re.sub(r"\s+", " ", row["text"]).strip().casefold()
-        if normalized_text in normalized_text_by_split[split]:
+        if normalized_text in normalized_text_seen:
+            first = normalized_text_seen[normalized_text]
             raise ValueError(
-                f"Duplicate text in {split!r} split near CSV line {row['_line']}. "
-                "Review duplicates to avoid overweighting repeated content."
+                f"Duplicate normalized claim text near CSV line {row['_line']}; "
+                f"first occurrence was line {first['_line']} in split {first['split']!r}. "
+                "Deduplicate exact inputs before splitting to prevent overweighting "
+                "and train/validation/test leakage."
             )
-        normalized_text_by_split[split].add(normalized_text)
+        normalized_text_seen[normalized_text] = row
         counts[(split, row["label"])] += 1
 
     for required_split in ("train", "validation", "test"):
