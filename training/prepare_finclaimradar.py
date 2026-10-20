@@ -131,7 +131,7 @@ def _deduplicate_exact_text(rows: List[Dict[str, str]]) -> List[Dict[str, str]]:
 
 def _merge_near_duplicate_groups(
     rows: List[Dict[str, str]],
-    threshold: float = 0.70,
+    threshold: float = 0.65,
 ) -> List[Dict[str, str]]:
     """Keep highly similar claims in the same split to reduce template leakage.
 
@@ -293,7 +293,7 @@ def prepare_dataset(output_csv: str) -> Tuple[int, Dict[str, int]]:
 
     # Group near-identical templates before splitting so a rewritten variant
     # is less likely to appear in train while its sibling appears in test.
-    mapped_rows = _merge_near_duplicate_groups(mapped_rows, threshold=0.70)
+    mapped_rows = _merge_near_duplicate_groups(mapped_rows, threshold=0.65)
     output_rows = _split_by_group(mapped_rows)
     path = Path(output_csv)
     path.parent.mkdir(parents=True, exist_ok=True)
