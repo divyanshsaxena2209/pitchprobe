@@ -1,0 +1,66 @@
+name: Research quick checks
+
+on:
+  push:
+    branches: [finetuning-lab]
+    paths:
+      - "training/**"
+      - ".github/workflows/research-quick-checks.yml"
+  pull_request:
+    branches: [finetuning-lab]
+    paths:
+      - "training/**"
+      - ".github/workflows/research-quick-checks.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  quick-checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Check out research branch
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: training/requirements.txt
+
+      - name: Install research dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r training/requirements.txt pytest
+
+      - name: Run quick regression tests
+        run: |
+          python -m pytest \
+            training/test_question_bank_router.py \
+            training/test_create_risk_review_sheet.py \
+            training/test_dataset_prep.py \
+            -q
+
+      - name: Run the six-claim question retrieval smoke test
+        run: |
+          python -m training.question_bank_router \
+            --claims-csv training/data/question_router_smoke_claims.csv \
+            --output-csv /tmp/question_bank_smoke_matches.csv \
+            --top-k 1
+
+      - name: Print question/evidence preview in workflow logs
+        run: |
+          python - <<'PY'
+          import pandas as pd
+          matches = pd.read_csv("/tmp/question_bank_smoke_matches.csv")
+          columns = [
+              "claim", "dimension_route", "dimension",
+              "retrieval_score", "question_for_claim",
+              "evidence_to_request", "contradiction_signal",
+          ]
+          print(matches[columns].to_string(index=False, max_colwidth=110))
+          assert len(matches) == 6, f"Expected 6 smoke-test matches, got {len(matches)}"
+          assert matches["question_for_claim"].fillna("").str.len().min() > 20
+          PY
