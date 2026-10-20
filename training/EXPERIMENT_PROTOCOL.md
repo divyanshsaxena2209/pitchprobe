@@ -65,3 +65,11 @@ For the published strength model, class F1 was 0.761 for `same`, 0.614 for `exag
 
 Interpret this as a strong in-domain reference baseline, not startup-pitch validation. The paper's repository states that its paired benchmark test file was used in the paper's experiments, so this is an in-domain reproduction/reference result rather than an independent blind evaluation of the published model. The released model was designed for causal claim-strength classification and comparison on scientific press-release/abstract pairs; this result does not establish generalization to startup claims. Keep it isolated from the app and master branch. Preserve the local Colab artifacts and review the model/dataset licensing terms before any redistribution.
 
+### Phase D — Human-reviewed startup-risk labels and question retrieval (research-only)
+
+- Current source review did not surface a sufficiently sized human-labelled startup-pitch dataset that directly matches PitchProbe's LOW / MODERATE / HIGH definitions.
+- Do not promote mapped FinClaimRadar labels to gold risk labels; they identify evidentiary categories and are only a proxy.
+- Use training/create_risk_review_sheet.py to sample training-split financial claims into an annotation worksheet. Complete human_risk_label, claim_is_investor_relevant, and evidence_status independently, and use second review/adjudication for disagreement. NEEDS_CONTEXT is an abstention state, not a fourth model class. This worksheet is a pilot annotation exercise, not a validated startup dataset.
+- Use training/question_bank_router.py as a no-training retrieval baseline over the 48-question [Startup Investor Falsification Question Bank](https://huggingface.co/datasets/mheilimo/startup-investor-falsification-question-bank), pinned at f39e258288f16c6f85dc40e67d38b9e90eff1426. Dataset card lists CC BY 4.0; attribute Playful Pixels Oy and link the license. Prototype results require human review of contextual relevance before use in the app.
+- Keep the application and master unchanged. Only propose integration after a test with reviewer-annotated startup claims and judged question quality.
+
