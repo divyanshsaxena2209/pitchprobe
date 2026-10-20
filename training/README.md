@@ -51,7 +51,7 @@ pip install -r training/requirements.txt
 python -m training.prepare_finclaimradar --output-csv training/data/external_claims.csv
 ```
 
-This downloads FinClaimRadar from Hugging Face, maps its categories to `LOW`/`MODERATE`/`HIGH`, then creates deterministic train/validation/test splits. Where `counterfactual_group_id` is available, related examples are kept in the same split. The script validates the generated data and reports class counts.
+This downloads FinClaimRadar from Hugging Face, maps its categories to `LOW`/`MODERATE`/`HIGH`, removes exact duplicate text before splitting, and drops duplicated texts whose mapped labels conflict because an identical input cannot provide a consistent single-label target. If duplicate text connects multiple source/counterfactual groups, those groups are merged before splitting so related examples cannot leak across train/validation/test. It then validates the generated data and reports class counts.
 
 ### 3. Measure the original classifier first
 
