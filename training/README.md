@@ -69,7 +69,7 @@ python -m training.train_classifier --data-csv training/data/external_claims.csv
 
 Default checkpoint output: `training/artifacts/pitchprobe-deberta-claims/`.
 
-The training script uses the training split for updates, the validation split for macro-F1-based checkpoint selection/early stopping, and the test split for the final report. It saves the tokenizer, model, per-class precision/recall/F1, confusion matrix, and predictions.
+The training script uses the training split for updates, the validation split for macro-F1-based checkpoint selection/early stopping, and the test split for the final report. It explicitly reinitializes the DeBERTa task-specific pooler/classifier modules: the source NLI model already has three output classes, so `ignore_mismatched_sizes=True` alone would not guarantee a fresh risk head. The encoder weights remain pretrained. It saves the tokenizer, model, per-class precision/recall/F1, confusion matrix, and predictions.
 
 ### 5. Decide whether the experiment helped
 
