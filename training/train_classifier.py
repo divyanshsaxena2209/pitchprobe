@@ -179,6 +179,12 @@ def main() -> None:
     )
 
     trainer.train()
+
+    # EarlyStoppingCallback monitors eval_macro_f1 during training. The final
+    # test evaluation uses the "test_" prefix, so that callback would warn that
+    # eval_macro_f1 is missing even though training and best-checkpoint selection
+    # have already completed. Remove it before touching the held-out test set.
+    trainer.remove_callback(EarlyStoppingCallback)
     test_metrics = trainer.evaluate(test_dataset, metric_key_prefix="test")
     predictions_output = trainer.predict(test_dataset, metric_key_prefix="test")
     predicted_ids = np.argmax(predictions_output.predictions, axis=-1)
