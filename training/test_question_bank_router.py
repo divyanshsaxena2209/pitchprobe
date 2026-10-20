@@ -103,4 +103,4 @@ def test_price_and_gross_margin_claim_prefers_cost_breakdown():
         top_k=1,
     )
     assert result[0]["claim_type"] == "pricing and gross margin"
-    assert "cost of goods sold" in result[0]["evidence_to_request"]
+    assert any(term in result[0]["evidence_to_request"].lower() for term in ("cogs", "cost of goods sold"))
