@@ -205,3 +205,48 @@ def test_fundraise_and_connectivity_claims_get_relevant_questions():
     )
     assert "connectivity" in connectivity
     assert "consent" in connectivity
+
+
+def test_question_routing_prioritizes_market_over_forecast_wording():
+    # "Not a forecast" is a caveat about market sizing, not a financial forecast.
+    question = _targeted_investor_question(
+        "Market sizing is a directional model, not a forecast of Sonora's share.",
+        "High",
+    )
+    assert "market" in question.lower()
+    assert "sales-volume" not in question.lower()
+    assert "gross-margin assumptions drive this forecast" not in question.lower()
+
+
+def test_question_routing_prioritizes_defensibility_over_retention():
+    question = _targeted_investor_question(
+        "Our defensibility must come from low-friction UX, integrations and retention.",
+        "Moderate",
+    )
+    assert "switching cost" in question.lower()
+    assert "cohort data" not in question.lower()
+
+
+def test_question_routing_prioritizes_production_gates_over_traction():
+    question = _targeted_investor_question(
+        "Do not place a large production order until 30+ paid deposits and supplier yield meet target.",
+        "Moderate",
+    )
+    assert "pre-production pass criteria" in question.lower()
+    assert "converted to paying customers" not in question.lower()
+
+
+def test_question_routing_handles_working_capital_and_market_scope():
+    working_capital = _targeted_investor_question(
+        "Tooling and inventory deposits create working-capital risk before sell-through is proven.",
+        "Moderate",
+    )
+    assert "cash will be tied up" in working_capital.lower()
+    assert "downside cash plan" in working_capital.lower()
+
+    market = _targeted_investor_question(
+        "TAM is from an external estimate; SAM and SOM are management assumptions, not externally validated.",
+        "High",
+    )
+    assert "independent sources" in market.lower()
+    assert "management assumptions" in market.lower()
