@@ -59,6 +59,7 @@ jobs:
               "claim", "dimension_route", "dimension",
               "retrieval_score", "question_for_claim",
               "evidence_to_request", "contradiction_signal",
+              "claim_specific_followup",
           ]
           for index, row in matches.iterrows():
               print(f"\\n--- Claim {index + 1} ---")
@@ -68,6 +69,12 @@ jobs:
           assert matches["question_for_claim"].fillna("").str.len().min() > 20
           assert "retrieval_score" in matches.columns
           assert "claim_similarity" in matches.columns
+          assert "claim_specific_followup" in matches.columns
+
+          benefit = matches[matches["claim"].str.contains("saves customer-support", case=False)]
+          margin = matches[matches["claim"].str.contains("gross margin", case=False)]
+          assert len(benefit) == 1 and len(benefit.iloc[0]["claim_specific_followup"]) > 20
+          assert len(margin) == 1 and len(margin.iloc[0]["claim_specific_followup"]) > 20
           PY
 
       - name: Upload six-claim question preview
