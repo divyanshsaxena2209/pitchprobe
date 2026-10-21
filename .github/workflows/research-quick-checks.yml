@@ -31,8 +31,7 @@ jobs:
       - name: Install research dependencies
         run: |
           python -m pip install --upgrade pip
-          # These quick checks do not load a transformer or train a model.
-          # Avoid installing PyTorch/CUDA just to test pandas/sklearn/dataset prep.
+          # These checks do not load a transformer or train a model.
           python -m pip install "pandas>=2.2,<3" "scikit-learn>=1.5,<2" "datasets>=3.2,<4" pytest
 
       - name: Run quick regression tests
@@ -43,41 +42,60 @@ jobs:
             training/test_dataset_prep.py \
             -q
 
-      - name: Run the six-claim question retrieval smoke test
+      - name: Run the 24-claim question retrieval smoke test
         run: |
           python -m training.question_bank_router \
             --claims-csv training/data/question_router_smoke_claims.csv \
             --output-csv /tmp/question_bank_smoke_matches.csv \
             --top-k 1
 
-      - name: Print question/evidence preview in workflow logs
+      - name: Validate dimensions and print full question preview
         run: |
           python - <<'PY'
           import pandas as pd
+
+          source = pd.read_csv("training/data/question_router_smoke_claims.csv")
           matches = pd.read_csv("/tmp/question_bank_smoke_matches.csv")
+          assert len(source) == 24, f"Expected 24 smoke claims, got {len(source)}"
+          assert len(matches) == len(source), f"Expected 24 matches, got {len(matches)}"
+
+          matches = matches.merge(
+              source[["claim", "expected_dimension"]],
+              on="claim",
+              how="left",
+              validate="one_to_one",
+          )
           columns = [
-              "claim", "dimension_route", "dimension",
-              "retrieval_score", "question_for_claim",
-              "evidence_to_request", "contradiction_signal",
-              "claim_specific_followup",
+              "claim", "expected_dimension", "dimension_route", "dimension",
+              "claim_similarity", "retrieval_score", "ranking_score",
+              "question_for_claim", "evidence_to_request",
+              "contradiction_signal", "claim_specific_followup",
           ]
+
           for index, row in matches.iterrows():
               print(f"\\n--- Claim {index + 1} ---")
               for column in columns:
                   print(f"{column}: {row[column]}")
-          assert len(matches) == 6, f"Expected 6 smoke-test matches, got {len(matches)}"
+
+          mismatches = matches[
+              matches["expected_dimension"] != matches["dimension_route"]
+          ]
+          assert mismatches.empty, (
+              "Dimension routing mismatch(es):\\n"
+              + mismatches[["claim", "expected_dimension", "dimension_route"]].to_string(index=False)
+          )
           assert matches["question_for_claim"].fillna("").str.len().min() > 20
-          assert "retrieval_score" in matches.columns
-          assert "claim_similarity" in matches.columns
-          assert "claim_specific_followup" in matches.columns
+          for column in ("retrieval_score", "claim_similarity"):
+              assert matches[column].between(0, 1).all(), f"{column} outside [0,1]"
 
           benefit = matches[matches["claim"].str.contains("saves customer-support", case=False)]
           margin = matches[matches["claim"].str.contains("gross margin", case=False)]
           assert len(benefit) == 1 and len(benefit.iloc[0]["claim_specific_followup"]) > 20
           assert len(margin) == 1 and len(margin.iloc[0]["claim_specific_followup"]) > 20
+          print("\\nPASS: 24/24 dimensions routed correctly; claim-specific outcome and margin follow-ups present.")
           PY
 
-      - name: Upload six-claim question preview
+      - name: Upload 24-claim question preview
         uses: actions/upload-artifact@v4
         with:
           name: question-bank-smoke-matches
