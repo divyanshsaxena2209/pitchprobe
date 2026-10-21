@@ -63,6 +63,8 @@ def health_check():
         generator_loaded=manager.generator_loaded,
         device=manager.device,
         version="0.1.0",
+        classifier_mode=manager.classifier_mode,
+        classifier=manager.classifier_name,
     )
 
 
