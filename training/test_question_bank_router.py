@@ -164,3 +164,14 @@ def test_claim_specific_followup_targets_supplier_capacity_and_contingency():
     assert "validated throughput" in followup
     assert "repeatable yield" in followup
     assert "second-source" in followup
+
+
+
+def test_claim_specific_followup_targets_privacy_data_lifecycle():
+    followup = claim_specific_followup(
+        "Our product stores sensitive customer recordings, so privacy compliance, data retention limits, and access controls must meet applicable rules."
+    )
+    assert "recording or personal-data categories" in followup
+    assert "consent or legal basis" in followup
+    assert "deletion and access controls" in followup
+    assert "acquisition spend" not in followup
