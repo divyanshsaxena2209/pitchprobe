@@ -121,6 +121,20 @@ def claim_specific_followup(claim: str) -> str:
     text = re.sub(r"\s+", " ", str(claim or "")).strip()
     lowered = text.lower()
 
+    # Sensitive-recording/privacy claims need a data lifecycle and control check,
+    # not the financial retention metric prompt.
+    privacy_claim = re.search(
+        r"\b(?:gdpr|privacy compliance|privacy|explicit consent|consent|data retention|"
+        r"deletion policy|customer recordings|personal data|access controls)\b",
+        lowered,
+    )
+    if privacy_claim:
+        return (
+            "Which recording or personal-data categories are collected, what consent or "
+            "legal basis covers each, how long is each retained, who can access it, and "
+            "what evidence demonstrates deletion and access controls are enforced?"
+        )
+
     # Market-size claims need a feasibility bridge from the defined segment to
     # the stated share, not only a top-down market definition.
     market_capture = (
