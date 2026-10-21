@@ -250,3 +250,32 @@ def test_question_routing_handles_working_capital_and_market_scope():
     )
     assert "independent sources" in market.lower()
     assert "management assumptions" in market.lower()
+
+
+def test_market_claim_variants_get_different_questions():
+    directional_share = _targeted_investor_question(
+        "Market sizing is a directional model, not a forecast of Sonora's share.",
+        "High",
+    )
+    analyst_definitions = _targeted_investor_question(
+        "Definitions vary by analyst; our SAM is an internal assumption, not a published market figure.",
+        "Moderate",
+    )
+    external_tam = _targeted_investor_question(
+        "TAM is sourced from an external market-research estimate; SAM and SOM are management assumptions, not externally validated.",
+        "High",
+    )
+
+    assert "attainable share specifically" in directional_share
+    assert "defined differently from broader analyst categories" in analyst_definitions
+    assert "independent sources" in external_tam
+    assert len({directional_share, analyst_definitions, external_tam}) == 3
+
+
+def test_planned_subscription_features_do_not_get_retention_cohort_question():
+    question = _targeted_investor_question(
+        "₹899 per seat per month for admin controls, retention policies, shared templates and workspace integrations; planned after v1.",
+        "High",
+    )
+    assert "committed for v1 versus deferred" in question
+    assert "cohort data" not in question
