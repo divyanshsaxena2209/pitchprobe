@@ -167,7 +167,14 @@ def main() -> int:
 
     print("PitchProbe local DeBERTa staging setup", flush=True)
     print("Use a Hugging Face READ token scoped to this private model.", flush=True)
-    token = getpass("Hugging Face read token (hidden; not saved): ").strip()
+
+    # For Windows PowerShell, prefer a token supplied via a temporary process
+    # environment variable populated from Read-Host -AsSecureString. This avoids
+    # Python getpass' raw console input, where Ctrl+V paste may not work.
+    # The script never writes the token to a file or prints it.
+    token = os.environ.pop("PITCHPROBE_HF_TOKEN", "").strip()
+    if not token:
+        token = getpass("Hugging Face read token (hidden; not saved): ").strip()
     if not token:
         print("No token entered. Nothing started.", file=sys.stderr)
         return 2
