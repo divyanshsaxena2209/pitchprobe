@@ -128,3 +128,39 @@ def test_claim_specific_followup_targets_gross_margin_costs():
     assert "variable costs" in followup
     assert "model inference" in followup
     assert "projected at scale" in followup
+
+
+def test_claim_specific_followup_targets_market_share_feasibility():
+    followup = claim_specific_followup(
+        "Our total addressable market is $8 billion and we expect to capture 5% within three years."
+    )
+    assert "eligible-buyer count" in followup
+    assert "conversion rate" in followup
+    assert "observed rather than projected" in followup
+
+
+def test_claim_specific_followup_targets_arr_cac_and_churn_definitions():
+    followup = claim_specific_followup(
+        "Our annual recurring revenue is $1.2 million, customer acquisition cost is $500, and monthly churn is 3%."
+    )
+    assert "denominator and time window" in followup
+    assert "acquisition spend" in followup
+    assert "source records" in followup
+
+
+def test_claim_specific_followup_targets_missing_operations_owner():
+    followup = claim_specific_followup(
+        "Our founder has scaled two B2B companies, but we lack an operations leader."
+    )
+    assert "Who owns" in followup
+    assert "milestone is at risk" in followup
+    assert "hiring or partner timeline" in followup
+
+
+def test_claim_specific_followup_targets_supplier_capacity_and_contingency():
+    followup = claim_specific_followup(
+        "Our supplier can manufacture 10,000 units a month at 98% yield with current tooling."
+    )
+    assert "validated throughput" in followup
+    assert "repeatable yield" in followup
+    assert "second-source" in followup
