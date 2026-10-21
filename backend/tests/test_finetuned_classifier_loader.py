@@ -10,9 +10,8 @@ from backend.analyzer import ModelManager
 RISK_ID2LABEL = {0: "LOW", 1: "MODERATE", 2: "HIGH"}
 
 
-def _fake_transformers(monkeypatch, id2label=RISK_ID2LABEL):
-    tokenizer_calls = []
-    model_calls = []
+def _install_transformers(monkeypatch, sequence_classifier, tokenizer_calls=None):
+    tokenizer_calls = tokenizer_calls if tokenizer_calls is not None else []
 
     class FakeTokenizer:
         @classmethod
@@ -20,12 +19,22 @@ def _fake_transformers(monkeypatch, id2label=RISK_ID2LABEL):
             tokenizer_calls.append((name, kwargs))
             return cls()
 
+    fake_module = types.ModuleType("transformers")
+    fake_module.AutoTokenizer = FakeTokenizer
+    fake_module.AutoModelForSequenceClassification = sequence_classifier
+    fake_module.AutoModelForSeq2SeqLM = object
+    monkeypatch.setitem(sys.modules, "transformers", fake_module)
+    return tokenizer_calls
+
+
+def _valid_model_class(id2label=RISK_ID2LABEL, calls=None):
     class FakeModel:
         config = SimpleNamespace(id2label=id2label)
 
         @classmethod
         def from_pretrained(cls, name, **kwargs):
-            model_calls.append((name, kwargs))
+            if calls is not None:
+                calls.append((name, kwargs))
             return cls()
 
         def to(self, _device):
@@ -34,12 +43,7 @@ def _fake_transformers(monkeypatch, id2label=RISK_ID2LABEL):
         def eval(self):
             return self
 
-    fake_module = types.ModuleType("transformers")
-    fake_module.AutoTokenizer = FakeTokenizer
-    fake_module.AutoModelForSequenceClassification = FakeModel
-    fake_module.AutoModelForSeq2SeqLM = object
-    monkeypatch.setitem(sys.modules, "transformers", fake_module)
-    return tokenizer_calls, model_calls
+    return FakeModel
 
 
 def test_no_model_path_preserves_original_nli_and_question_generator_defaults(monkeypatch):
@@ -61,23 +65,25 @@ def test_hub_checkpoint_loads_with_revision_and_optional_secret_token(monkeypatc
     )
     monkeypatch.setenv("PITCHPROBE_CLASSIFIER_REVISION", "0123456789abcdef")
     monkeypatch.setenv("HF_TOKEN", "test-token-value")
-    tokenizer_calls, model_calls = _fake_transformers(monkeypatch)
+    model_calls = []
+    tokenizer_calls = _install_transformers(
+        monkeypatch,
+        _valid_model_class(calls=model_calls),
+    )
 
     manager = ModelManager()
     manager.try_load_models(background=False)
 
+    expected_kwargs = {
+        "local_files_only": False,
+        "revision": "0123456789abcdef",
+        "token": "test-token-value",
+    }
     assert manager.classifier_loaded is True
     assert manager.classifier_mode == "fine_tuned"
     assert manager.classifier_name == "test-owner/pitchprobe-deberta-risk"
     assert tokenizer_calls == [
-        (
-            "test-owner/pitchprobe-deberta-risk",
-            {
-                "local_files_only": False,
-                "revision": "0123456789abcdef",
-                "token": "test-token-value",
-            },
-        )
+        ("test-owner/pitchprobe-deberta-risk", expected_kwargs)
     ]
     assert model_calls == tokenizer_calls
 
@@ -86,75 +92,35 @@ def test_local_checkpoint_remains_local_only(monkeypatch, tmp_path):
     monkeypatch.setenv("PITCHPROBE_CLASSIFIER_PATH", str(tmp_path))
     monkeypatch.setenv("PITCHPROBE_CLASSIFIER_REVISION", "ignored-for-local-path")
     monkeypatch.setenv("HF_TOKEN", "unused-for-local-path")
-    tokenizer_calls, model_calls = _fake_transformers(monkeypatch)
+    model_calls = []
+    tokenizer_calls = _install_transformers(
+        monkeypatch,
+        _valid_model_class(calls=model_calls),
+    )
 
     manager = ModelManager()
     manager.try_load_models(background=False)
 
+    expected_call = (str(tmp_path), {"local_files_only": True})
     assert manager.classifier_loaded is True
     assert manager.classifier_mode == "fine_tuned"
-    assert tokenizer_calls == [
-        (str(tmp_path), {"local_files_only": True})
-    ]
-    assert model_calls == tokenizer_calls
+    assert tokenizer_calls == [expected_call]
+    assert model_calls == [expected_call]
 
 
-def test_incompatible_pairwise_labels_are_not_accepted_as_risk_labels(monkeypatch):
+def test_incompatible_pairwise_labels_are_rejected_and_original_nli_fallback_is_kept(
+    monkeypatch,
+):
     monkeypatch.setenv(
         "PITCHPROBE_CLASSIFIER_PATH",
         "test-owner/scientific-pair-classifier",
     )
     monkeypatch.delenv("PITCHPROBE_CLASSIFIER_REVISION", raising=False)
     monkeypatch.delenv("HF_TOKEN", raising=False)
-    tokenizer_calls, model_calls = _fake_transformers(
-        monkeypatch,
-        {0: "same", 1: "exaggerates", 2: "downplays"},
-    )
+    tokenizer_calls = []
+    model_calls = []
 
-    # First call is the incompatible configured checkpoint. The second load is
-    # the original NLI fallback; return a valid NLI-shaped fake for that call.
-    class FallbackModel:
-        config = SimpleNamespace(
-            id2label={0: "contradiction", 1: "entailment", 2: "neutral"}
-        )
-
-        @classmethod
-        def from_pretrained(cls, name, **kwargs):
-            model_calls.append((name, kwargs))
-            return cls()
-
-        def to(self, _device):
-            return self
-
-        def eval(self):
-            return self
-
-    fake_module = types.ModuleType("transformers")
-
-    class Tokenizer:
-        @classmethod
-        def from_pretrained(cls, name, **kwargs):
-            tokenizer_calls.append((name, kwargs))
-            return cls()
-
-    # First model call returns pairwise labels; subsequent NLI fallback is a
-    # different model class with standard NLI labels.
-    bad = _fake_transformers(
-        monkeypatch,
-        {0: "same", 1: "exaggerates", 2: "downplays"},
-    )
-
-    calls = {"count": 0}
-
-    class SequenceClassifier:
-        @classmethod
-        def from_pretrained(cls, name, **kwargs):
-            calls["count"] += 1
-            if calls["count"] == 1:
-                return bad_model()
-            return FallbackModel.from_pretrained(name, **kwargs)
-
-    class BadModel:
+    class PairwiseModel:
         config = SimpleNamespace(
             id2label={0: "same", 1: "exaggerates", 2: "downplays"}
         )
@@ -165,13 +131,17 @@ def test_incompatible_pairwise_labels_are_not_accepted_as_risk_labels(monkeypatc
         def eval(self):
             return self
 
-    def bad_model():
-        return BadModel()
+    class SequenceClassifier:
+        @classmethod
+        def from_pretrained(cls, name, **kwargs):
+            model_calls.append((name, kwargs))
+            if len(model_calls) == 1:
+                return PairwiseModel()
+            return _valid_model_class(
+                id2label={0: "contradiction", 1: "entailment", 2: "neutral"}
+            ).from_pretrained(name, **kwargs)
 
-    fake_module.AutoTokenizer = Tokenizer
-    fake_module.AutoModelForSequenceClassification = SequenceClassifier
-    fake_module.AutoModelForSeq2SeqLM = object
-    monkeypatch.setitem(sys.modules, "transformers", fake_module)
+    _install_transformers(monkeypatch, SequenceClassifier, tokenizer_calls)
 
     manager = ModelManager()
     manager.try_load_models(background=False)
@@ -179,3 +149,6 @@ def test_incompatible_pairwise_labels_are_not_accepted_as_risk_labels(monkeypatc
     assert manager.classifier_loaded is True
     assert manager.classifier_mode == "nli"
     assert manager.classifier_name == "cross-encoder/nli-deberta-v3-base"
+    assert model_calls[0][0] == "test-owner/scientific-pair-classifier"
+    assert model_calls[1][0] == "cross-encoder/nli-deberta-v3-base"
+    assert len(tokenizer_calls) == 2
