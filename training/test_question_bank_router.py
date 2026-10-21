@@ -3,6 +3,7 @@ import pytest
 
 from training.question_bank_router import (
     InvestorQuestionRetriever,
+    claim_specific_followup,
     expand_retrieval_query,
     infer_dimension,
 )
@@ -108,3 +109,22 @@ def test_price_and_gross_margin_claim_prefers_cost_breakdown():
     )
     assert result[0]["claim_type"] == "pricing and gross margin"
     assert any(term in result[0]["evidence_to_request"].lower() for term in ("cogs", "cost of goods sold"))
+
+
+def test_claim_specific_followup_targets_quantified_customer_benefit():
+    followup = claim_specific_followup(
+        "Our product saves customer-support teams four hours per week, based on 20 pilot interviews."
+    )
+    assert "pre-product baseline" in followup
+    assert "measurement window" in followup
+    assert "failed cases" in followup
+
+
+def test_claim_specific_followup_targets_gross_margin_costs():
+    followup = claim_specific_followup(
+        "We charge $99 per seat per month and expect an 85% gross margin at scale."
+    )
+    assert "$99" in followup
+    assert "variable costs" in followup
+    assert "model inference" in followup
+    assert "projected at scale" in followup
