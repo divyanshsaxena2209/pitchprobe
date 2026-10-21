@@ -63,6 +63,10 @@ def test_retriever_routes_financial_claim_and_returns_evidence_fields():
     assert "evidence_to_request" in result[0]
     assert result[0]["dimension_route"] == "Financials"
     assert result[0]["attribution"].startswith("Playful Pixels Oy")
+    assert 0.0 <= result[0]["claim_similarity"] <= 1.0
+    assert 0.0 <= result[0]["retrieval_score"] <= 1.0
+    assert result[0]["ranking_score"] >= result[0]["retrieval_score"]
+    assert "query_expanded" in result[0]
 
 
 def test_short_claim_rejected():
