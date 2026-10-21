@@ -13,6 +13,8 @@ async def test_health_endpoint():
     assert "classifier_loaded" in data
     assert "generator_loaded" in data
     assert "device" in data
+    assert data["classifier_mode"] in ("nli", "fine_tuned")
+    assert isinstance(data["classifier"], str) and data["classifier"]
 
 
 @pytest.mark.asyncio
