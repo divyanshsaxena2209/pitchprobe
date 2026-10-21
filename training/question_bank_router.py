@@ -112,6 +112,52 @@ def expand_retrieval_query(claim: str) -> str:
     return " ".join([str(claim or "")] + expansions)
 
 
+def claim_specific_followup(claim: str) -> str:
+    """Add a transparent local follow-up when retrieval misses a key claim detail.
+
+    This is locally authored guidance, not a question copied from the licensed
+    source bank. It supplements rather than replaces the attributed retrieved item.
+    """
+    text = re.sub(r"\s+", " ", str(claim or "")).strip()
+    lowered = text.lower()
+
+    benefit_claim = re.search(
+        r"\b(?:save|saves|saved|saving|reduce|reduces|reduced|improve|improves|"
+        r"improved|increase|increases|increased|faster|time saved|cost savings|"
+        r"productivity|customer outcome)\b",
+        lowered,
+    )
+    quantified_outcome = re.search(
+        r"\b(?:\d+(?:\.\d+)?|one|two|three|four|five|six|seven|eight|nine|ten|"
+        r"eleven|twelve|twenty|thirty|forty|fifty)\s*(?:%|percent|hours?|minutes?|"
+        r"seconds?|days?|weeks?|months?|dollars?|customers?|users?)\b",
+        lowered,
+    )
+    if benefit_claim and quantified_outcome:
+        return (
+            "What pre-product baseline, measurement window and sample support the "
+            "claimed customer benefit, and were setup time, failed cases and "
+            "outlier users included in the calculation?"
+        )
+
+    pricing_or_margin = re.search(
+        r"(?:[$₹€£]\s*\d|\bper\s+(?:seat|user|month|year)\b|"
+        r"\b(?:pricing|price tier|gross margin|unit economics|contribution margin|"
+        r"cost of goods sold|cogs|cost per seat|subscription)\b)",
+        lowered,
+    )
+    if pricing_or_margin and re.search(r"\b(?:gross margin|margin|cogs|cost of goods sold)\b", lowered):
+        price_match = re.search(r"[$₹€£]\s?\d[\d,.]*", text)
+        price_text = f"At {price_match.group(0)}" if price_match else "At the stated price"
+        return (
+            f"{price_text}, which variable costs (hosting, model inference, support, "
+            "payment fees, discounts and refunds) are included in the claimed gross "
+            "margin, and is that margin measured today or projected at scale?"
+        )
+
+    return ""
+
+
 class InvestorQuestionRetriever:
     def __init__(self, bank: pd.DataFrame):
         missing = sorted(set(REQUIRED_COLUMNS) - set(bank.columns))
@@ -195,6 +241,7 @@ class InvestorQuestionRetriever:
                 f"For this claim — “{claim}” — {row['falsification_question'][0].lower()}"
                 f"{row['falsification_question'][1:]}"
             )
+            row["claim_specific_followup"] = claim_specific_followup(claim)
             results.append(row)
         return results
 
