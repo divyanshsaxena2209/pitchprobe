@@ -2,11 +2,12 @@ name: Backend model integration checks
 
 on:
   push:
-    branches: [feature/deberta-risk-model-loader, staging/local-deberta-smoke-test]
+    branches: [feature/deberta-risk-model-loader, staging/local-deberta-smoke-test, feature/question-generator-finetune]
     paths:
       - "backend/**"
       - "README.md"
       - "start_staging_backend.py"
+      - "training/**"
       - ".github/workflows/backend-model-integration.yml"
   pull_request:
     branches: [master]
@@ -40,13 +41,17 @@ jobs:
       - name: Install backend and test dependencies
         run: |
           python -m pip install -r backend/requirements.txt
+          python -m pip install -r training/requirements.txt
           python -m pip install pytest pytest-asyncio httpx reportlab
 
       - name: Check local staging launcher syntax
         run: python -m py_compile start_staging_backend.py
 
-      - name: Run backend regression suite
+      - name: Compile question-generation training scripts
+        run: python -m py_compile training/train_question_generator.py
+
+      - name: Run backend and training-data regression suites
         env:
           PITCHPROBE_DEVICE: cpu
         run: |
-          python -m pytest backend/tests -q
+          python -m pytest backend/tests training/tests -q
