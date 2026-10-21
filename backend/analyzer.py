@@ -459,7 +459,7 @@ def _targeted_investor_question(sentence: str, risk: str) -> str:
 
     # 3. Competitive defensibility beats generic retention/traction routing.
     if re.search(
-        r"\b(?:defensib|competitors?|competition|incumbents?|moat|patent|"
+        r"\b(?:defensib\w*|competitors?|competition|incumbents?|moat|patent|"
         r"competitive advantage|copy|clone|bundl(?:e|ing))\b",
         text,
     ):
@@ -474,10 +474,20 @@ def _targeted_investor_question(sentence: str, risk: str) -> str:
         r"billion|market estimate|market sizing|serviceable market|reachable market)\b",
         text,
     ):
+        if re.search(r"\b(?:directional model|not a forecast of)\b", text) and re.search(r"\bshare\b", text):
+            return (
+                "What bottom-up evidence supports Sonora's attainable share specifically, rather "
+                "than the total category size, and how does the case change at a smaller share?"
+            )
         if re.search(r"\b(?:penetration|market share|capture|share of market)\b", text):
             return (
                 "What comparable adoption data and channel-level conversion evidence make this "
                 "penetration target reachable, and how does the estimate change at a lower share?"
+            )
+        if re.search(r"\bdefinitions vary by analyst\b", text):
+            return (
+                "How is your SAM defined differently from broader analyst categories, and what "
+                "buyer count, price and adoption assumptions make that boundary defensible?"
             )
         if re.search(r"\b(?:external(?:ly)? sourced|external estimate|management assumption|"
                      r"internal assumption|not externally validated|directional model)\b", text):
@@ -537,6 +547,12 @@ def _targeted_investor_question(sentence: str, risk: str) -> str:
         r"\bpricing tier\b)",
         text,
     ):
+        if re.search(r"\b(?:planned after v1|planned after version 1|post[- ]v1|retention policies|"
+                     r"admin controls|workspace integrations|shared templates)\b", text):
+            return (
+                "Which capabilities are committed for v1 versus deferred, and what buyer evidence "
+                "shows the planned tier's incremental features justify its recurring price?"
+            )
         if re.search(r"\b(?:attach rate|retention|renewal|churn|cohort|subscriber activation)\b", text):
             return (
                 "What cohort data shows subscribers activate, retain and renew at the assumed rate, "
