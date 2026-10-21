@@ -94,6 +94,7 @@ jobs:
               "gross-margin costs": "gross margin",
               "ARR/CAC/churn": "annual recurring revenue",
               "missing operations owner": "lack an operations leader",
+              "privacy data lifecycle": "sensitive customer recordings",
               "supplier capacity": "supplier can manufacture",
           }
           for label, needle in followup_cases.items():
