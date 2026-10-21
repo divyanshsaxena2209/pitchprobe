@@ -38,7 +38,7 @@ jobs:
       - name: Install backend and test dependencies
         run: |
           python -m pip install -r backend/requirements.txt
-          python -m pip install pytest httpx reportlab
+          python -m pip install pytest pytest-asyncio httpx reportlab
 
       - name: Run backend regression suite
         env:
