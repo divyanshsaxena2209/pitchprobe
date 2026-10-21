@@ -121,6 +121,55 @@ def claim_specific_followup(claim: str) -> str:
     text = re.sub(r"\s+", " ", str(claim or "")).strip()
     lowered = text.lower()
 
+    # Market-size claims need a feasibility bridge from the defined segment to
+    # the stated share, not only a top-down market definition.
+    market_capture = (
+        re.search(r"\b(?:tam|sam|som|addressable market|market size|market share)\b", lowered)
+        and re.search(r"\b(?:capture|captures|capturing|penetration|adoption rate)\b", lowered)
+    )
+    if market_capture:
+        return (
+            "What eligible-buyer count, reachable channel capacity, conversion rate and "
+            "sales cycle would make the stated market share achievable within the claimed "
+            "period, and which inputs are observed rather than projected?"
+        )
+
+    # Keep reported revenue and operating metrics tied to consistent cohorts,
+    # time windows and source records.
+    financial_metrics = re.search(
+        r"\b(?:arr|annual recurring revenue|mrr|revenue|cac|customer acquisition cost|"
+        r"ltv|lifetime value|churn|retention|payback)\b",
+        lowered,
+    )
+    if financial_metrics:
+        return (
+            "Which cohort, denominator and time window define each metric, and can the "
+            "revenue, customer count, acquisition spend, churn and retention be reconciled "
+            "to source records using a consistent formula?"
+        )
+
+    # A role gap needs a named interim owner, execution consequence and hiring plan.
+    role_gap = (
+        re.search(r"\b(?:lack|lacks|missing)\b.{0,40}\b(?:operations?|ops|leader|owner|lead)\b", lowered)
+        or re.search(r"\b(?:need|needs|hiring|hire)\b.{0,30}\b(?:operations?|ops)\s+(?:leader|lead|owner|hire)\b", lowered)
+    )
+    if role_gap:
+        return (
+            "Who owns the missing operational responsibility today, which milestone is at "
+            "risk until the role is filled, and what funded hiring or partner timeline closes the gap?"
+        )
+
+    # Supplier/manufacturing claims need validated capacity, yield and contingency evidence.
+    supplier_capacity = (
+        re.search(r"\b(?:supplier|manufactur(?:e|ing)|production|yield|tooling)\b", lowered)
+        and re.search(r"\b(?:supplier|manufactur(?:e|ing)|production|yield|tooling|volume)\b", lowered)
+    )
+    if supplier_capacity:
+        return (
+            "What validated throughput, repeatable yield, lead time and second-source or "
+            "contingency plan show delivery remains on schedule if volume rises or the main supplier fails?"
+        )
+
     benefit_claim = re.search(
         r"\b(?:save|saves|saved|saving|reduce|reduces|reduced|improve|improves|"
         r"improved|increase|increases|increased|faster|time saved|cost savings|"
