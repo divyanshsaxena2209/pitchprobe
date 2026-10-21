@@ -417,6 +417,19 @@ def _targeted_investor_question(sentence: str, risk: str) -> str:
             "and what evidence must be achieved before the next funding round?"
         )
 
+    # Team capability gaps must not be mistaken for product privacy claims
+    # (for example, "we need privacy counsel").
+    if re.search(
+        r"\b(?:founder|co-founder|founding team|leadership team|team lacks|team needs|"
+        r"hiring|hire|leader|capability gap|advisor|fractional operations|privacy counsel|"
+        r"former product lead|owns customer discovery|supply-chain leader|operations lead)\b",
+        text,
+    ):
+        return (
+            "Which critical capability is still missing, who is accountable for closing the gap, "
+            "and what hiring or partner milestone must be met before the next stage?"
+        )
+
     # 2. Explicit production gates and working-capital exposure take priority over
     # mentions of pilots, deposits, sell-through, or other traction terms.
     if re.search(r"\b(?:working[- ]capital|inventory deposits?|tooling deposits?)\b", text):
@@ -470,7 +483,7 @@ def _targeted_investor_question(sentence: str, risk: str) -> str:
                      r"internal assumption|not externally validated|directional model)\b", text):
             return (
                 "Which parts of this market estimate come from independent sources versus "
-                "management assumptions, and how sensitive is it to a narrower reachable segment?"
+                "management assumptions, and how sensitive is it to a narrower customer segment?"
             )
         if re.search(r"\b(?:beachhead|target segment|professionals|reachable customer)\b", text):
             return (
@@ -504,18 +517,7 @@ def _targeted_investor_question(sentence: str, risk: str) -> str:
             "and how many users, environments and failure cases were measured?"
         )
 
-    # Team capability gaps must not be mistaken for product privacy claims
-    # (for example, "we need privacy counsel").
-    if re.search(
-        r"\b(?:founder|co-founder|founding team|leadership team|team lacks|team needs|"
-        r"hiring|hire|leader|capability gap|advisor|fractional operations|privacy counsel|"
-        r"former product lead|owns customer discovery|supply-chain leader|operations lead)\b",
-        text,
-    ):
-        return (
-            "Which critical capability is still missing, who is accountable for closing the gap, "
-            "and what hiring or partner milestone must be met before the next stage?"
-        )
+
 
     if re.search(
         r"\b(?:app connectivity|meeting-platform integration|fully offline|universal integration|"
