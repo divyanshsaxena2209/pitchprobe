@@ -26,7 +26,7 @@ from urllib.request import Request, urlopen
 ROOT = Path(__file__).resolve().parent
 MODEL_ID = "divstu/pitchprobe-deberta-claims-verified-v2"
 MODEL_REVISION = "5771ca4cdbc6afc05bdb0baec92409c7f02e9be6"
-LOAD_TIMEOUT_SECONDS = 900  # allow non-Xet model weight download on slower Windows networks
+LOAD_TIMEOUT_SECONDS = 1800  # allow a full large-checkpoint download on slower Windows networks
 POLL_SECONDS = 2
 
 
@@ -198,10 +198,12 @@ def main() -> int:
     env["PITCHPROBE_CLASSIFIER_REVISION"] = MODEL_REVISION
     env["HF_TOKEN"] = token
     env["HF_HUB_DOWNLOAD_TIMEOUT"] = "180"
-    # The log showed model.safetensors reached the Xet redirect and then stalled.
-    # Disable the Xet transport for this process so Hugging Face uses regular
-    # HTTPS download for the pinned checkpoint instead.
-    env["HF_HUB_DISABLE_XET"] = "1"
+    # Use native Xet chunked downloads for the 738 MB safetensors file.
+    # The HTTP fallback was repeatedly cut off after ~66 MB on this machine.
+    # Current hf-xet releases support adaptive chunk downloads and resume better
+    # than the single-stream fallback observed in the staging log.
+    env["HF_HUB_DISABLE_XET"] = "0"
+    env["HF_XET_HIGH_PERFORMANCE"] = "1"
     # Keep question generation on the existing targeted rules.
     env["PITCHPROBE_USE_FLAN_T5"] = "0"
 
