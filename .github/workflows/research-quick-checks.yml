@@ -60,7 +60,19 @@ jobs:
               "retrieval_score", "question_for_claim",
               "evidence_to_request", "contradiction_signal",
           ]
-          print(matches[columns].to_string(index=False, max_colwidth=110))
+          for index, row in matches.iterrows():
+              print(f"\\n--- Claim {index + 1} ---")
+              for column in columns:
+                  print(f"{column}: {row[column]}")
           assert len(matches) == 6, f"Expected 6 smoke-test matches, got {len(matches)}"
           assert matches["question_for_claim"].fillna("").str.len().min() > 20
+          assert "retrieval_score" in matches.columns
+          assert "claim_similarity" in matches.columns
           PY
+
+      - name: Upload six-claim question preview
+        uses: actions/upload-artifact@v4
+        with:
+          name: question-bank-smoke-matches
+          path: /tmp/question_bank_smoke_matches.csv
+          retention-days: 7
