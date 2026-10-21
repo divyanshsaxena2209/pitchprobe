@@ -109,33 +109,66 @@ class ModelManager:
                 )
 
                 if not self.classifier_loaded:
-                    # Fine-tuned checkpoints are local-only: do not silently
-                    # download an unrelated model if the configured path is bad.
+                    # Accept either a mounted local checkpoint or a Hugging Face
+                    # Hub model ID. A configured fine-tuned classifier is still
+                    # opt-in; with no PITCHPROBE_CLASSIFIER_PATH the original NLI
+                    # model and the existing question-generation path are unchanged.
                     if self.classifier_mode == "fine_tuned":
                         try:
+                            local_checkpoint = os.path.isdir(
+                                os.path.expanduser(self.classifier_name)
+                            )
+                            load_kwargs = {"local_files_only": local_checkpoint}
+
+                            # Pin a Hub revision for reproducible deployments.
+                            # Never log the token; only pass it to Transformers.
+                            if not local_checkpoint:
+                                revision = os.environ.get(
+                                    "PITCHPROBE_CLASSIFIER_REVISION", ""
+                                ).strip()
+                                if revision:
+                                    load_kwargs["revision"] = revision
+                                hf_token = (
+                                    os.environ.get("HF_TOKEN", "").strip()
+                                    or os.environ.get(
+                                        "HUGGINGFACE_HUB_TOKEN", ""
+                                    ).strip()
+                                )
+                                if hf_token:
+                                    load_kwargs["token"] = hf_token
+
                             logger.info(
-                                "Loading fine-tuned three-label risk classifier from %s...",
+                                "Loading fine-tuned three-label risk classifier from %s (%s checkpoint)...",
                                 self.classifier_name,
+                                "local" if local_checkpoint else "Hub",
                             )
                             tok = AutoTokenizer.from_pretrained(
                                 self.classifier_name,
-                                local_files_only=True,
+                                **load_kwargs,
                             )
                             model = AutoModelForSequenceClassification.from_pretrained(
                                 self.classifier_name,
-                                local_files_only=True,
+                                **load_kwargs,
                             ).to(self.device)
+
+                            id2label = getattr(model.config, "id2label", {})
                             normalized_labels = {
                                 str(label).strip().upper().replace("-", "_").replace(" ", "_")
-                                for label in model.config.id2label.values()
+                                for label in id2label.values()
                             }
                             required_labels = {"LOW", "MODERATE", "HIGH"}
-                            if not required_labels.issubset(normalized_labels):
+                            if len(id2label) != 3 or normalized_labels != required_labels:
                                 raise ValueError(
-                                    "Fine-tuned risk checkpoint must define labels "
-                                    "LOW, MODERATE, and HIGH; found "
-                                    f"{sorted(normalized_labels)}"
+                                    "Fine-tuned risk checkpoint must have exactly "
+                                    "three outputs mapped to LOW, MODERATE, and HIGH; "
+                                    f"found id2label={id2label}"
                                 )
+                            if set(int(key) for key in id2label) != {0, 1, 2}:
+                                raise ValueError(
+                                    "Fine-tuned risk checkpoint label IDs must be 0, 1, 2; "
+                                    f"found id2label={id2label}"
+                                )
+
                             model.eval()
                             self.classifier_tokenizer = tok
                             self.classifier_model = model
