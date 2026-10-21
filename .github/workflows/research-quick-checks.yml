@@ -103,7 +103,7 @@ jobs:
               question = subset.iloc[0]["claim_specific_followup"]
               assert isinstance(question, str) and len(question) > 20, f"Missing follow-up for {label}"
 
-          print("\\nPASS: 24/24 dimensions routed correctly; six claim-specific follow-ups present.")
+          print("\\nPASS: 24/24 dimensions routed correctly; seven claim-specific follow-ups present.")
           PY
 
       - name: Upload 24-claim question preview
