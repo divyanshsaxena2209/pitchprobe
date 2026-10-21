@@ -88,11 +88,21 @@ jobs:
           for column in ("retrieval_score", "claim_similarity"):
               assert matches[column].between(0, 1).all(), f"{column} outside [0,1]"
 
-          benefit = matches[matches["claim"].str.contains("saves customer-support", case=False)]
-          margin = matches[matches["claim"].str.contains("gross margin", case=False)]
-          assert len(benefit) == 1 and len(benefit.iloc[0]["claim_specific_followup"]) > 20
-          assert len(margin) == 1 and len(margin.iloc[0]["claim_specific_followup"]) > 20
-          print("\\nPASS: 24/24 dimensions routed correctly; claim-specific outcome and margin follow-ups present.")
+          followup_cases = {
+              "market capture": "expect to capture 5%",
+              "outcome measurement": "saves customer-support",
+              "gross-margin costs": "gross margin",
+              "ARR/CAC/churn": "annual recurring revenue",
+              "missing operations owner": "lack an operations leader",
+              "supplier capacity": "supplier can manufacture",
+          }
+          for label, needle in followup_cases.items():
+              subset = matches[matches["claim"].str.contains(needle, case=False, regex=False)]
+              assert len(subset) == 1, f"Expected one smoke claim for {label}"
+              question = subset.iloc[0]["claim_specific_followup"]
+              assert isinstance(question, str) and len(question) > 20, f"Missing follow-up for {label}"
+
+          print("\\nPASS: 24/24 dimensions routed correctly; six claim-specific follow-ups present.")
           PY
 
       - name: Upload 24-claim question preview
