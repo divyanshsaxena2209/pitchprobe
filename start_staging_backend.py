@@ -26,6 +26,8 @@ from urllib.request import Request, urlopen
 ROOT = Path(__file__).resolve().parent
 MODEL_ID = "divstu/pitchprobe-deberta-claims-verified-v2"
 MODEL_REVISION = "5771ca4cdbc6afc05bdb0baec92409c7f02e9be6"
+LOCAL_MODEL_DIR = ROOT / "models" / "pitchprobe-deberta-claims-verified-v2"
+MIN_MODEL_WEIGHTS_BYTES = 700_000_000
 LOAD_TIMEOUT_SECONDS = 1800  # allow a full large-checkpoint download on slower Windows networks
 POLL_SECONDS = 2
 
@@ -166,49 +168,84 @@ def main() -> int:
         return 2
 
     print("PitchProbe local DeBERTa staging setup", flush=True)
-    print("Use a Hugging Face READ token scoped to this private model.", flush=True)
 
-    # For Windows PowerShell, prefer a token supplied via a temporary process
-    # environment variable populated from Read-Host -AsSecureString. This avoids
-    # Python getpass' raw console input, where Ctrl+V paste may not work.
-    # The script never writes the token to a file or prints it.
-    token = os.environ.pop("PITCHPROBE_HF_TOKEN", "").strip()
-    if not token:
-        token = getpass("Hugging Face read token (hidden; not saved): ").strip()
-    if not token:
-        print("No token entered. Nothing started.", file=sys.stderr)
-        return 2
+    # Prefer a complete local copy restored from Drive. This avoids repeated
+    # downloads of the 738 MB weight file through an unstable CDN connection.
+    local_checkpoint = False
+    if LOCAL_MODEL_DIR.exists():
+        weights = LOCAL_MODEL_DIR / "model.safetensors"
+        required_files = [
+            LOCAL_MODEL_DIR / "config.json",
+            weights,
+            LOCAL_MODEL_DIR / "tokenizer.json",
+            LOCAL_MODEL_DIR / "spm.model",
+        ]
+        missing = [str(p) for p in required_files if not p.is_file()]
+        if missing:
+            print(
+                "[STAGING ERROR] Local checkpoint folder exists but is incomplete. "
+                "Missing: " + ", ".join(missing),
+                file=sys.stderr,
+            )
+            return 2
+        if weights.stat().st_size < MIN_MODEL_WEIGHTS_BYTES:
+            print(
+                "[STAGING ERROR] Local model.safetensors is too small "
+                f"({weights.stat().st_size:,} bytes). Expected at least "
+                f"{MIN_MODEL_WEIGHTS_BYTES:,} bytes. Restore the complete file; "
+                "the backend was not started.",
+                file=sys.stderr,
+            )
+            return 2
+        local_checkpoint = True
+        classifier_path = str(LOCAL_MODEL_DIR.resolve())
+        print(f"[STAGING] Using complete local checkpoint: {classifier_path}", flush=True)
+    else:
+        print("No local checkpoint found; using the pinned private Hub checkpoint.", flush=True)
+        print("Use a Hugging Face READ token scoped to this private model.", flush=True)
 
-    try:
-        validate_private_checkpoint(token)
-    except Exception as exc:
-        print(
-            f"[STAGING ERROR] Private checkpoint preflight failed: {exc}",
-            file=sys.stderr,
-        )
-        print(
-            "Confirm the token has read access to the private model and that "
-            "the pinned revision is available. Nothing was started.",
-            file=sys.stderr,
-        )
-        return 2
+        # Windows PowerShell may provide this through a masked popup.
+        token = os.environ.pop("PITCHPROBE_HF_TOKEN", "").strip()
+        if not token:
+            token = getpass("Hugging Face read token (hidden; not saved): ").strip()
+        if not token:
+            print("No token entered. Nothing started.", file=sys.stderr)
+            return 2
+
+        try:
+            validate_private_checkpoint(token)
+        except Exception as exc:
+            print(
+                f"[STAGING ERROR] Private checkpoint preflight failed: {exc}",
+                file=sys.stderr,
+            )
+            print(
+                "Check token access and pinned revision. Nothing was started.",
+                file=sys.stderr,
+            )
+            return 2
+
+        classifier_path = MODEL_ID
 
     env = os.environ.copy()
-    env["PITCHPROBE_CLASSIFIER_PATH"] = MODEL_ID
+    env["PITCHPROBE_CLASSIFIER_PATH"] = classifier_path
     env["PITCHPROBE_CLASSIFIER_REVISION"] = MODEL_REVISION
-    env["HF_TOKEN"] = token
-    env["HF_HUB_DOWNLOAD_TIMEOUT"] = "180"
-    # Use native Xet chunked downloads for the 738 MB safetensors file.
-    # The HTTP fallback was repeatedly cut off after ~66 MB on this machine.
-    # Current hf-xet releases support adaptive chunk downloads and resume better
-    # than the single-stream fallback observed in the staging log.
-    env["HF_HUB_DISABLE_XET"] = "0"
-    env["HF_XET_HIGH_PERFORMANCE"] = "1"
+    if local_checkpoint:
+        # Local-only load; do not use network or require a token.
+        env.pop("HF_TOKEN", None)
+        env["HF_HUB_OFFLINE"] = "1"
+        env["TRANSFORMERS_OFFLINE"] = "1"
+    else:
+        env["HF_TOKEN"] = token
+        env["HF_HUB_DOWNLOAD_TIMEOUT"] = "180"
+        env["HF_HUB_DISABLE_XET"] = "0"
+        env["HF_XET_HIGH_PERFORMANCE"] = "1"
     # Keep question generation on the existing targeted rules.
     env["PITCHPROBE_USE_FLAN_T5"] = "0"
 
-    # Do not write token to .env.local, PowerShell history or project files.
-    del token
+    # Never write a token to .env.local, the repository, or logs.
+    if not local_checkpoint:
+        del token
 
     creationflags = (
         subprocess.CREATE_NEW_PROCESS_GROUP if os.name == "nt" else 0
@@ -265,7 +302,8 @@ def main() -> int:
                 mode = health.get("classifier_mode")
                 classifier = health.get("classifier")
 
-                if mode != "fine_tuned" or classifier != MODEL_ID:
+                expected_classifier = classifier_path
+                if mode != "fine_tuned" or classifier != expected_classifier:
                     print(
                         "[STAGING ERROR] Backend loaded a fallback or unexpected "
                         f"classifier: mode={mode!r}, classifier={classifier!r}. "
@@ -275,9 +313,13 @@ def main() -> int:
                     stop_process_tree(process)
                     return 3
 
-                print("\n[STAGING VERIFIED] Fine-tuned classifier is loaded.", flush=True)
+                print("\\n[STAGING VERIFIED] Fine-tuned classifier is loaded.", flush=True)
                 print(f"Classifier: {classifier}", flush=True)
-                print(f"Revision: {MODEL_REVISION}", flush=True)
+                if local_checkpoint:
+                    print(f"Source model revision: {MODEL_ID}@{MODEL_REVISION}", flush=True)
+                    print("Weights loaded from the restored local Drive copy.", flush=True)
+                else:
+                    print(f"Revision: {MODEL_REVISION}", flush=True)
                 print(f"Health: http://127.0.0.1:{selected_port}/api/health", flush=True)
                 print(
                     "Question generation remains targeted-rule based "
