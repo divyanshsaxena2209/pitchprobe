@@ -181,7 +181,14 @@ class InvestorQuestionRetriever:
         results: List[Dict[str, object]] = []
         for index in ranked:
             row = self.bank.iloc[index].to_dict()
-            row["retrieval_score"] = round(float(similarities[index]), 4)
+            # Expose both the raw-claim and expanded-query similarities.
+            # The retrieval score reflects the score used for semantic ranking;
+            # the route bonus is separate so the fields remain interpretable.
+            row["claim_similarity"] = round(float(similarities[index]), 4)
+            row["retrieval_score"] = round(float(ranking_similarities[index]), 4)
+            row["dimension_route_bonus"] = 0.35 if routed and row["dimension"] == routed else 0.0
+            row["ranking_score"] = round(float(scores[index]), 4)
+            row["query_expanded"] = ranking_query_text != claim
             row["dimension_route"] = routed
             row["attribution"] = "Playful Pixels Oy — Startup Investor Falsification Question Bank (CC BY 4.0)"
             row["question_for_claim"] = (
