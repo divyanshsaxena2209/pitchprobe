@@ -60,6 +60,22 @@ npm run build
 PitchProbe includes a four-label DeBERTa fine-tuning pipeline and a baseline evaluator in [training/README.md](training/README.md). The first step is to create a human-reviewed, deck-separated dataset; do not train on unreviewed predictions from the current model. Private dataset files and trained checkpoints are ignored by Git.
 
 
+## 5. Optional fine-tuned DeBERTa risk classifier
+
+The backend can load a three-label risk classifier from a local checkpoint or a Hugging Face Hub model repository. This is **opt-in**; with no `PITCHPROBE_CLASSIFIER_PATH`, PitchProbe continues using the original `cross-encoder/nli-deberta-v3-base` classification path. The question-generation code and its default targeted-rule behavior are unchanged.
+
+Configure these backend environment variables only after exporting and checking a compatible fine-tuned risk checkpoint:
+
+- `PITCHPROBE_CLASSIFIER_PATH`: local checkpoint directory or Hub model ID (for example, `your-hf-user/pitchprobe-deberta-risk`).
+- `PITCHPROBE_CLASSIFIER_REVISION`: recommended Hub commit SHA to pin the exact model revision.
+- `HF_TOKEN` (or `HUGGINGFACE_HUB_TOKEN`): read token if the model repository is private. Keep it in deployment secrets; never commit it.
+
+The loader accepts **exactly three output labels**: `LOW`, `MODERATE`, and `HIGH`, with output IDs `0`, `1`, and `2`. A checkpoint from the scientific exaggeration pair experiment (`same`, `exaggerates`, `downplays`) is incompatible with this single-claim risk classifier and will be rejected; the backend then falls back to the original NLI classifier.
+
+The FinClaimRadar-derived model uses mapped evidentiary categories as proxy labels, not independently validated startup-pitch risk labels. Before enabling it for users, inspect its held-out metrics and evaluate on a separate, human-reviewed pitch-claim set. A successful load means the model files and label schema are compatible; it does **not** prove the model is more accurate. Review the source dataset's CC BY-SA 4.0 terms before redistributing model weights.
+
+To keep question generation unchanged, leave `PITCHPROBE_USE_FLAN_T5=0` (the default). Fine-tuned risk classification only replaces the risk-label prediction when `PITCHPROBE_CLASSIFIER_PATH` is set and the checkpoint loads successfully.
+
 ### Long-running PDF analysis
 
 The browser uses `NEXT_PUBLIC_BACKEND_URL` to post PDFs directly to FastAPI, bypassing the Next.js rewrite proxy for long CPU-bound analysis requests. `start_backend.py` writes both `BACKEND_URL` and `NEXT_PUBLIC_BACKEND_URL` whenever it confirms the selected port. Always start/restart Next.js after starting the launcher or if the backend selects a new port, because public environment variables are included when the client bundle is built.
