@@ -138,7 +138,8 @@ def test_incompatible_pairwise_labels_are_rejected_and_original_nli_fallback_is_
             if len(model_calls) == 1:
                 return PairwiseModel()
             return _valid_model_class(
-                id2label={0: "contradiction", 1: "entailment", 2: "neutral"}
+                id2label={0: "contradiction", 1: "entailment", 2: "neutral"},
+                calls=model_calls,
             ).from_pretrained(name, **kwargs)
 
     _install_transformers(monkeypatch, SequenceClassifier, tokenizer_calls)
