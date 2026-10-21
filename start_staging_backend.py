@@ -31,19 +31,56 @@ POLL_SECONDS = 2
 
 
 def validate_private_checkpoint(token: str) -> None:
-    """Check private repo access, pinned revision and risk label schema."""
+    """Check token identity, private repo access, pinned revision and labels."""
     from huggingface_hub import HfApi, hf_hub_download
 
     api = HfApi(token=token)
-    info = api.model_info(
-        MODEL_ID,
-        revision=MODEL_REVISION,
-        token=token,
-    )
-    if not info.private:
+    identity = api.whoami()
+    username = identity.get("name", "unknown")
+    print(f"[STAGING] Authenticated Hugging Face account: {username}", flush=True)
+    print(f"[STAGING] Checking access to private model: {MODEL_ID}", flush=True)
+
+    # First test repository access independently of the pinned SHA. This makes
+    # wrong-account/permission errors distinguishable from a missing revision.
+    try:
+        latest_info = api.model_info(MODEL_ID, token=token)
+    except Exception as exc:
+        response = getattr(exc, "response", None)
+        status = getattr(response, "status_code", "unknown")
+        body = getattr(response, "text", "") or ""
+        body = " ".join(body.split())[:700]
+        raise RuntimeError(
+            f"Account '{username}' could not read {MODEL_ID}. "
+            f"HTTP status: {status}. Hub response: {body or str(exc)[:400]}. "
+            "Create a READ token while signed into the Hugging Face account "
+            "'divstu' (the model owner), or explicitly grant this account "
+            "read access to that private model. Do not paste the token into "
+            "chat or a command-line argument."
+        ) from exc
+
+    if not latest_info.private:
         raise RuntimeError(
             f"{MODEL_ID} is not private. Stop and verify the intended repo."
         )
+
+    try:
+        info = api.model_info(
+            MODEL_ID,
+            revision=MODEL_REVISION,
+            token=token,
+        )
+    except Exception as exc:
+        response = getattr(exc, "response", None)
+        status = getattr(response, "status_code", "unknown")
+        body = getattr(response, "text", "") or ""
+        body = " ".join(body.split())[:700]
+        raise RuntimeError(
+            f"Repository access worked for account '{username}', but pinned "
+            f"revision {MODEL_REVISION} could not be read. HTTP status: {status}. "
+            f"Hub response: {body or str(exc)[:400]}. Check the revision SHA "
+            "and try again; the model is not activated."
+        ) from exc
+
     if info.sha != MODEL_REVISION:
         raise RuntimeError(
             "Hub did not return the requested model revision. "
