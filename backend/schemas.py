@@ -42,3 +42,6 @@ class HealthResponse(BaseModel):
     generator_loaded: bool
     device: str
     version: str = "0.1.0"
+    # Additive diagnostics so local staging can verify which classifier is active.
+    classifier_mode: str = "nli"
+    classifier: str = "cross-encoder/nli-deberta-v3-base"
