@@ -476,8 +476,8 @@ def _targeted_investor_question(sentence: str, risk: str) -> str:
     ):
         if re.search(r"\b(?:directional model|not a forecast of)\b", text) and re.search(r"\bshare\b", text):
             return (
-                "What bottom-up evidence supports Sonora's attainable share specifically, rather "
-                "than the total category size, and how does the case change at a smaller share?"
+                "What bottom-up evidence supports Sonora's attainable market share specifically, "
+                "rather than the total category size, and how does the case change at a smaller share?"
             )
         if re.search(r"\b(?:penetration|market share|capture|share of market)\b", text):
             return (
@@ -514,7 +514,7 @@ def _targeted_investor_question(sentence: str, risk: str) -> str:
                 "the break-even date, and how much extra runway is needed in the downside case?"
             )
         return (
-            "Which sales-volume, realised-price, conversion and gross-margin assumptions drive this "
+            "Which sales-volume, realised-price, conversion and gross margin assumptions drive this "
             "forecast, what actuals support them, and how does the downside case change the result?"
         )
 
