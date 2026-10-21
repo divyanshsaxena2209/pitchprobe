@@ -64,6 +64,18 @@ PitchProbe includes a four-label DeBERTa fine-tuning pipeline and a baseline eva
 
 The backend can load a three-label risk classifier from a local checkpoint or a Hugging Face Hub model repository. This is **opt-in**; with no `PITCHPROBE_CLASSIFIER_PATH`, PitchProbe continues using the original `cross-encoder/nli-deberta-v3-base` classification path. The question-generation code and its default targeted-rule behavior are unchanged.
 
+### Staging checkpoint selected (2026-10-21)
+
+The current experimental checkpoint is hosted privately at `divstu/pitchprobe-deberta-claims-verified-v2`, pinned to revision `5771ca4cdbc6afc05bdb0baec92409c7f02e9be6`. The exact non-secret settings are in [`backend/.env.staging.example`](backend/.env.staging.example). Do not commit an access token.
+
+To stage it, configure these environment variables on the **backend runtime only**:
+- `PITCHPROBE_CLASSIFIER_PATH=divstu/pitchprobe-deberta-claims-verified-v2`
+- `PITCHPROBE_CLASSIFIER_REVISION=5771ca4cdbc6afc05bdb0baec92409c7f02e9be6`
+- `HF_TOKEN`: a dedicated Hugging Face **read-only** token stored as a hosting-provider secret (do not reuse the write token for runtime access).
+- `PITCHPROBE_USE_FLAN_T5=0` so question generation remains on targeted rules.
+
+After setting them, redeploy/restart the backend and verify startup logs say the fine-tuned classifier loaded; if loading fails, the existing code falls back to NLI. Test several known sample claims and confirm the reported pipeline is `fine_tuned_three_label+targeted_question_rules` before using this outside staging.
+
 Configure these backend environment variables only after exporting and checking a compatible fine-tuned risk checkpoint:
 
 - `PITCHPROBE_CLASSIFIER_PATH`: local checkpoint directory or Hub model ID (for example, `your-hf-user/pitchprobe-deberta-risk`).
