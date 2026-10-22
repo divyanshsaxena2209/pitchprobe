@@ -354,3 +354,55 @@ def test_usage_kpi_and_pilot_plan_get_measurement_specific_questions():
     assert "weekly active use" in pilot
     assert "admin time saved" in pilot
     assert usage != pilot
+
+
+def test_former_product_lead_claim_probes_track_record_not_team_gap():
+    background = _targeted_investor_question(
+        "Former product lead at a fictional collaboration SaaS scale-up; "
+        "owns customer discovery, pricing and distribution.",
+        "High",
+    )
+    current_gap = _targeted_investor_question(
+        "No founder has scaled a consumer hardware brand end-to-end.",
+        "Moderate",
+    )
+
+    assert "measurable customer-discovery" in background
+    assert "metrics or references" in background
+    assert "critical capability is still missing" in current_gap
+    assert background != current_gap
+
+
+def test_next_proof_point_beta_is_distinct_from_production_gate():
+    proof_point = _targeted_investor_question(
+        "Next proof point: 50-person closed beta, pre-registered success metrics, "
+        "and at least 30 paid deposits before committing to production tooling.",
+        "Moderate",
+    )
+    production_gate = _targeted_investor_question(
+        "Do not place a large production order until: 30+ paid deposits, "
+        "fit-related return intent below 8%, 90%+ of beta summaries judged useful, "
+        "and supplier yield meets target.",
+        "Moderate",
+    )
+
+    assert "pre-registered pass/fail metrics" in proof_point
+    assert "50-person beta" in proof_point
+    assert "pre-production pass criteria" in production_gate
+    assert proof_point != production_gate
+
+
+def test_year_five_revenue_ambition_is_distinct_from_year_three_conversion_case():
+    year_five = _targeted_investor_question(
+        "$28M Revenue ambition based on 100k annual devices + subscriptions.",
+        "Moderate",
+    )
+    year_three = _targeted_investor_question(
+        "A path to 42 crore revenue in year three—if conversion holds.",
+        "Moderate",
+    )
+
+    assert "split between device sales and recurring subscriptions" in year_five
+    assert "100,000 annual devices" in year_five
+    assert "paid-conversion rate and unit volume" in year_three
+    assert year_five != year_three

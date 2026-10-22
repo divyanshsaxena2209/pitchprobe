@@ -411,11 +411,51 @@ def _targeted_investor_question(sentence: str, risk: str) -> str:
             "and what evidence must be achieved before the next funding round?"
         )
 
+    # A historical product-lead claim needs evidence of role scope and outcomes,
+    # not a question about currently missing team capabilities.
+    if re.search(r"\bformer product lead\b", text) and re.search(
+        r"\bowns customer discovery\b|\bpricing and distribution\b", text
+    ):
+        return (
+            "What measurable customer-discovery, pricing or distribution outcomes did they own "
+            "in that role, and what metrics or references substantiate those results?"
+        )
+
+    # Distinguish a proof-point plan from the later go/no-go production checklist.
+    if re.search(r"\bnext proof point\b", text) and re.search(
+        r"\b(?:closed beta|pre-registered|success metrics)\b", text
+    ):
+        return (
+            "What pre-registered pass/fail metrics will the 50-person beta use, how will summary "
+            "usefulness and repeat use be measured, and will the 30 paid deposits be verified "
+            "before production tooling is committed?"
+        )
+
+    # A year-five ambition combining device volume and subscriptions needs a revenue bridge.
+    if re.search(r"\$28m\b|\b28m\b", text) and re.search(
+        r"\b100k annual devices\b", text
+    ) and re.search(r"\bsubscriptions?\b", text):
+        return (
+            "How is the $28M ambition split between device sales and recurring subscriptions, "
+            "and what average selling price, subscription attach/renewal rate and channel "
+            "assumptions support 100,000 annual devices?"
+        )
+
+    # The year-three claim explicitly hinges on conversion, so challenge that funnel.
+    if re.search(r"\bpath to 42 crore revenue in year three\b", text) and re.search(
+        r"\bconversion holds\b", text
+    ):
+        return (
+            "What paid-conversion rate and unit volume underlie the ₹42 crore Year-3 case, "
+            "what evidence supports those inputs today, and how far does revenue fall if "
+            "conversion is lower?"
+        )
+
     # Team capability gaps are different from product privacy or manufacturing risks.
     if re.search(
         r"\b(?:founder|co-founder|founding team|leadership team|team lacks|team needs|"
         r"hiring|hire|leader|capability gap|advisor|fractional operations|privacy counsel|"
-        r"former product lead|owns customer discovery|supply-chain leader|operations lead)\b",
+        r"supply-chain leader|operations lead)\b",
         text,
     ):
         return (
