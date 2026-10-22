@@ -30,7 +30,8 @@ export default function Home() {
       <main className="main-stage flex-1 flex flex-col justify-center items-center px-4 sm:px-6">
         <div className="home-content w-full text-center">
           {/* B. Main Heading & Supporting Text */}
-          <div className="home-intro">\n            <p className="hero-kicker">Pitch deck due diligence</p>
+          <div className="home-intro">
+            <p className="hero-kicker">Pitch deck due diligence</p>
             <h1 className="hero-title text-2xl sm:text-4xl font-semibold tracking-tight text-[#20211F] mb-3 leading-tight sm:leading-tight">
               Know what an investor might question.
             </h1>
