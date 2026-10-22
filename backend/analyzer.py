@@ -468,7 +468,7 @@ def _targeted_investor_question(sentence: str, risk: str) -> str:
     ):
         return (
             "Which TAM inputs are supported by independent sources, and which SAM/SOM boundaries "
-            "and adoption assumptions remain management estimates that need validation?"
+            "and adoption assumptions remain management assumptions that need validation?"
         )
 
     if re.search(
