@@ -2,7 +2,7 @@ name: Backend model integration checks
 
 on:
   push:
-    branches: [feature/deberta-risk-model-loader, staging/local-deberta-smoke-test, feature/question-routing-diversity, feature/question-routing-followups, feature/question-routing-final-pass]
+    branches: [feature/deberta-risk-model-loader, staging/local-deberta-smoke-test, feature/question-routing-diversity, feature/question-routing-followups, feature/question-routing-final-pass, feature/detect-pitch-deck-templates]
     paths:
       - "backend/**"
       - "README.md"

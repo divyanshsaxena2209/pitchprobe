@@ -36,6 +36,44 @@ ADMIN_COMPACT_MARKERS = STRONG_ADMIN_MARKERS + [
     "studentname",
 ]
 
+TEMPLATE_WARNING = (
+    "This PDF appears to be a pitch-deck template or instruction guide rather "
+    "than a completed startup pitch deck. No investor-facing claims were scored. "
+    "Replace the prompts with your venture's actual product, customer, market, "
+    "traction, financial, team, and funding claims, then upload the completed deck."
+)
+
+# Compact phrases copied from common pitch-deck teaching templates. We require
+# several distinct instructions before warning, so one ordinary phrase in a
+# completed deck (for example, a roadmap or three-year forecast) is not enough.
+PITCH_TEMPLATE_INSTRUCTION_MARKERS = [
+    "thegoalofyourpitchdeckistogiveasnapshotof",
+    "themostcompellingelementsofyourexecutivesummary",
+    "youwillbeallotted10minutesorless",
+    "ensureslidesarenottextordataheavy",
+    "defineyourventurewithashortdeclarativesentence",
+    "describethepainofthecustomer",
+    "outlinehowthecustomeraddresses",
+    "providecasescustomerinsightscasestudies",
+    "demonstrateyourcompanysvalueproposition",
+    "providebottomsupmarketsizing",
+    "identifyprofilethecustomeryoucater",
+    "changingtrendsnewtechnologiesandforcesdrivingthissegment",
+    "givealistofdirectcompetitorssubstitutes",
+    "whathasntanyonedonethisbefore",
+    "howwillyoureachtargetmarket",
+    "wherewillyoupromoteyourproduct",
+    "whatisyourplanforexecution",
+    "summarizesalesmarketingandpartnershipplans",
+    "productlineupformfactorfunctionalityfeatures",
+    "explainhowyoumakemoney",
+    "provide3yearforecastincludingannualrevenue",
+    "providethreeyearforecast",
+    "howmuchcapitalwillyouneedpriortobecomingcashflowpositive",
+    "youneedtoconveythatyouaretheteamtoexecutethisventure",
+    "additionalslidesthatcanbeusedforfollowupquestions",
+]
+
 RESEARCH_COMPACT_MARKERS = [
     "literaturesurvey",
     "researchgap",
@@ -144,13 +182,23 @@ NON_CLAIM_PATTERNS = [
 
 
 def document_warning_for_text(raw_text: Optional[str]) -> Optional[str]:
-    """Detect likely coursework/research documents before analyzing sentences."""
+    """Detect likely pitch-deck templates or coursework before claim scoring."""
     if not raw_text or not raw_text.strip():
         return None
 
     # Compact matching catches PDF extraction artifacts such as
-    # "CourseCode", "SubmissionDeadline", and "ContributionMatrix".
+    # "CourseCode", "SubmissionDeadline", and line-broken template instructions.
     compact = re.sub(r"[^a-z0-9]+", "", raw_text.lower())
+
+    template_hits = sum(
+        marker in compact for marker in PITCH_TEMPLATE_INSTRUCTION_MARKERS
+    )
+    # Template guides contain many distinct imperative instructions across
+    # slides. A five-marker threshold avoids warning on a real deck that only
+    # mentions a roadmap, market sizing, or a three-year forecast.
+    if template_hits >= 5:
+        return TEMPLATE_WARNING
+
     strong_admin_hits = sum(marker in compact for marker in STRONG_ADMIN_MARKERS)
     admin_hits = sum(marker in compact for marker in ADMIN_COMPACT_MARKERS)
     research_hits = sum(marker in compact for marker in RESEARCH_COMPACT_MARKERS)

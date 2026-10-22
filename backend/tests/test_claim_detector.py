@@ -1,6 +1,7 @@
 from backend.analyzer import ModelManager, analyze_sentences
 from backend.claim_detector import (
     DOCUMENT_WARNING,
+    TEMPLATE_WARNING,
     document_warning_for_text,
     is_investor_claim,
 )
@@ -193,3 +194,67 @@ def test_excludes_fictional_disclaimers_orphaned_metrics_and_nonclaims():
     assert not is_investor_claim(",000 paid pre-orders / refundable")
     assert not is_investor_claim("pilot if retention supports it.")
     assert not is_investor_claim("buyers who need fully offline AI or universal integrations.")
+
+
+def test_detects_pitch_deck_instruction_template_and_does_not_score_prompts():
+    template_text = """
+    Pitch Deck Example
+    The goal of your pitch deck is to give a snapshot of your investment opportunity.
+    You will be allotted 10 minutes or less to present.
+    Ensure slides are not text or data heavy.
+    TAGLINE: Define your venture with a short declarative sentence.
+    Describe the pain of the customer.
+    Outline how the customer addresses the issue today.
+    Demonstrate your company's value proposition.
+    Provide cases, customer insights, case studies.
+    Provide bottoms-up market sizing.
+    Identify/profile the customer you cater to.
+    Give a list of direct competitors, substitutes.
+    How will you reach your target market?
+    Where will you promote your product?
+    Explain how you make money.
+    Provide a 3 year forecast, including annual revenue.
+    How much capital will you need prior to becoming cash flow positive?
+    Tip: You need to convey that you are the team to execute this venture!
+    Additional slides that can be used for follow-up questions.
+    """
+    assert document_warning_for_text(template_text) == TEMPLATE_WARNING
+
+    results, summary, pipeline_info = analyze_sentences(
+        [
+            "Is it costing the customer time, money, frustration?",
+            "How will you reach your target market?",
+            "Provide bottoms-up market sizing.",
+            "Tip: You need to convey that you are the team to execute this venture!",
+        ],
+        raw_text=template_text,
+    )
+
+    assert results == []
+    assert summary == {"low_risk": 0, "moderate_risk": 0, "high_risk": 0}
+    assert pipeline_info["document_warning"] == TEMPLATE_WARNING
+    assert "No investor-facing claims were scored" in pipeline_info["document_warning"]
+
+
+def test_completed_pitch_deck_is_not_flagged_for_a_few_similar_business_terms():
+    completed_deck = """
+    Nivaro Footwear makes walking shoes for urban commuters.
+    We achieved ₹10 lakh in revenue from 250 customers during our first quarter.
+    Our three-year forecast targets ₹4 crore annual revenue.
+    Our go-to-market plan uses direct online sales and selected retail partners.
+    """
+    assert document_warning_for_text(completed_deck) is None
+
+
+def test_template_detector_handles_compacted_and_line_broken_pdf_text():
+    extracted_template = (
+        "Pitch Deck Example Goal The goal of your pitch deck is to give a snapshot of "
+        "your investment opportunity. Housekeeping You will be allotted 10 minutes or less. "
+        "Cover page TAGLINE Define your venture with a short declarative sentence. "
+        "Problem Describe the pain of the customer. Solution Provide cases, customer insights, case studies. "
+        "Market Size Dynamic Provide bottoms-up market sizing. "
+        "Go-to-Market Strategy How will you reach your target market? "
+        "Financial Snapshot Provide a 3 year forecast including annual revenue. "
+        "Team Tip You need to convey that you are the team to execute this venture."
+    )
+    assert document_warning_for_text(extracted_template) == TEMPLATE_WARNING
