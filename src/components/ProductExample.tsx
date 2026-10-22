@@ -2,10 +2,10 @@ export default function ProductExample() {
   return (
     <section
       aria-labelledby="example-output-heading"
-      className="w-full max-w-xl mx-auto mt-14 sm:mt-16 pt-10 border-t border-[#E6E4DE]"
+      className="sample-preview w-full max-w-xl mx-auto mt-14 sm:mt-16 pt-10 border-t border-[#E6E4DE]"
     >
       {/* Section Label */}
-      <div className="flex items-center justify-between mb-4">
+      <div className="preview-heading flex items-center justify-between mb-4">
         <span
           id="example-output-heading"
           className="text-[11px] font-semibold tracking-wider text-[#73746F] uppercase"
@@ -18,7 +18,7 @@ export default function ProductExample() {
       </div>
 
       {/* Compact Example Card */}
-      <div className="rounded-xl bg-white border border-[#E6E4DE] p-5 sm:p-6 text-left shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
+      <div className="preview-card rounded-xl bg-white border border-[#E6E4DE] p-5 sm:p-6 text-left shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
         {/* Claim Block */}
         <div className="mb-4">
           <div className="flex items-center justify-between gap-3 mb-1.5">
