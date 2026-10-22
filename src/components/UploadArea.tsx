@@ -216,10 +216,10 @@ export default function UploadArea({ onResultsChange }: UploadAreaProps) {
           onDrop={handleDrop}
           className={`upload-dropzone relative w-full rounded-2xl bg-white border transition-all duration-200 p-8 sm:p-10 text-center ${
             isDragging
-              ? "border-[#426B50] bg-[#F4F7F4] ring-2 ring-[#426B50]/20"
+              ? "border-[#315B41] bg-[#EAF0E8] ring-2 ring-[#315B41]/20"
               : errorMessage
               ? "border-[#E3B5AF] bg-white"
-              : "border-[#E6E4DE] shadow-[0_1px_3px_rgba(0,0,0,0.03)] hover:border-[#D1CFC7]"
+              : "border-[#DCE4D9] shadow-[0_1px_3px_rgba(0,0,0,0.03)] hover:border-[#BFCDBE]"
           }`}
         >
           {!file ? (
@@ -228,8 +228,8 @@ export default function UploadArea({ onResultsChange }: UploadAreaProps) {
               <div
                 className={`w-14 h-14 rounded-full flex items-center justify-center mb-4 transition-colors ${
                   isDragging
-                    ? "bg-[#426B50]/10 text-[#426B50]"
-                    : "bg-[#FAF9F6] text-[#73746F] border border-[#E6E4DE]"
+                    ? "bg-[#315B41]/10 text-[#315B41]"
+                    : "bg-[#F3F6F1] text-[#6F7970] border border-[#DCE4D9]"
                 }`}
                 aria-hidden="true"
               >
@@ -248,10 +248,10 @@ export default function UploadArea({ onResultsChange }: UploadAreaProps) {
                 </svg>
               </div>
 
-              <h2 className="text-lg font-semibold text-[#20211F] mb-1 tracking-tight">
+              <h2 className="text-lg font-semibold text-[#202922] mb-1 tracking-tight">
                 {isDragging ? "Drop your PDF file here" : "Upload your pitch deck"}
               </h2>
-              <p className="text-sm text-[#73746F] mb-6">
+              <p className="text-sm text-[#6F7970] mb-6">
                 Choose a PDF up to 20 MB from your computer.
               </p>
 
@@ -259,7 +259,7 @@ export default function UploadArea({ onResultsChange }: UploadAreaProps) {
                 type="button"
                 id="choose-pdf-button"
                 onClick={handleChooseClick}
-                className="primary-action inline-flex items-center justify-center px-5 py-2.5 rounded-lg bg-[#426B50] hover:bg-[#365741] text-white text-sm font-medium transition-colors shadow-sm cursor-pointer focus-visible:ring-2 focus-visible:ring-[#426B50] focus-visible:ring-offset-2"
+                className="primary-action inline-flex items-center justify-center px-5 py-2.5 rounded-lg bg-[#315B41] hover:bg-[#244832] text-white text-sm font-medium transition-colors shadow-sm cursor-pointer focus-visible:ring-2 focus-visible:ring-[#315B41] focus-visible:ring-offset-2"
               >
                 <svg
                   className="w-4 h-4 mr-2"
@@ -278,14 +278,14 @@ export default function UploadArea({ onResultsChange }: UploadAreaProps) {
                 Choose PDF
               </button>
 
-              <p className="mt-6 text-xs text-[#73746F]">
+              <p className="mt-6 text-xs text-[#6F7970]">
                 PDF only · Evaluates claim vagueness &amp; investor questions
               </p>
             </div>
           ) : (
             /* Selected File State */
             <div className="flex flex-col items-center">
-              <div className="w-14 h-14 rounded-xl bg-[#FAF9F6] border border-[#E6E4DE] text-[#426B50] flex items-center justify-center mb-4">
+              <div className="w-14 h-14 rounded-xl bg-[#F3F6F1] border border-[#DCE4D9] text-[#315B41] flex items-center justify-center mb-4">
                 <svg
                   className="w-7 h-7"
                   fill="none"
@@ -304,18 +304,18 @@ export default function UploadArea({ onResultsChange }: UploadAreaProps) {
 
               <div className="max-w-full px-2 mb-2 text-center">
                 <h3
-                  className="text-base font-medium text-[#20211F] truncate"
+                  className="text-base font-medium text-[#202922] truncate"
                   title={file.name}
                 >
                   {file.name}
                 </h3>
-                <p className="text-xs text-[#73746F] mt-0.5">
+                <p className="text-xs text-[#6F7970] mt-0.5">
                   {formatFileSize(file.size)} · PDF Pitch Deck
                 </p>
               </div>
 
-              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#FAF9F6] border border-[#E6E4DE] text-xs font-medium text-[#426B50] my-3">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#426B50]" />
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#F3F6F1] border border-[#DCE4D9] text-xs font-medium text-[#315B41] my-3">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#315B41]" />
                 File ready for analysis
               </div>
 
@@ -325,7 +325,7 @@ export default function UploadArea({ onResultsChange }: UploadAreaProps) {
                   id="analyze-deck-button"
                   onClick={handleAnalyzeClick}
                   disabled={isAnalyzing}
-                  className="primary-action w-full sm:w-auto flex-1 inline-flex items-center justify-center px-4 py-2.5 rounded-lg bg-[#426B50] hover:bg-[#365741] text-white text-sm font-medium transition-colors shadow-sm cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-[#426B50] focus-visible:ring-offset-2"
+                  className="primary-action w-full sm:w-auto flex-1 inline-flex items-center justify-center px-4 py-2.5 rounded-lg bg-[#315B41] hover:bg-[#244832] text-white text-sm font-medium transition-colors shadow-sm cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-[#315B41] focus-visible:ring-offset-2"
                 >
                   {isAnalyzing ? (
                     <>
@@ -359,7 +359,7 @@ export default function UploadArea({ onResultsChange }: UploadAreaProps) {
                   id="remove-file-button"
                   onClick={handleRemove}
                   disabled={isAnalyzing}
-                  className="secondary-action w-full sm:w-auto inline-flex items-center justify-center px-3.5 py-2.5 rounded-lg border border-[#E6E4DE] bg-white hover:bg-[#FAF9F6] text-[#73746F] hover:text-[#20211F] text-sm font-medium transition-colors cursor-pointer disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-[#426B50] focus-visible:ring-offset-2"
+                  className="secondary-action w-full sm:w-auto inline-flex items-center justify-center px-3.5 py-2.5 rounded-lg border border-[#DCE4D9] bg-white hover:bg-[#F3F6F1] text-[#6F7970] hover:text-[#202922] text-sm font-medium transition-colors cursor-pointer disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-[#315B41] focus-visible:ring-offset-2"
                 >
                   Remove
                 </button>
@@ -371,16 +371,16 @@ export default function UploadArea({ onResultsChange }: UploadAreaProps) {
         /* Results View */
         <div className="w-full space-y-6">
           {/* Top Summary Bar */}
-          <div className="results-overview rounded-2xl bg-white border border-[#E6E4DE] p-6 shadow-sm">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-[#E6E4DE]">
+          <div className="results-overview rounded-2xl bg-white border border-[#DCE4D9] p-6 shadow-sm">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-[#DCE4D9]">
               <div>
-                <span className="text-[11px] font-semibold tracking-wider text-[#73746F] uppercase">
+                <span className="text-[11px] font-semibold tracking-wider text-[#6F7970] uppercase">
                   ANALYSIS RESULTS
                 </span>
-                <h2 className="text-xl font-semibold text-[#20211F] mt-0.5 truncate max-w-md">
+                <h2 className="text-xl font-semibold text-[#202922] mt-0.5 truncate max-w-md">
                   {analysisResult.filename}
                 </h2>
-                <p className="text-xs text-[#73746F] mt-1">
+                <p className="text-xs text-[#6F7970] mt-1">
                   Detected and risk-scored {analysisResult.total_sentences} investor-facing claims via {analysisResult.pipeline_info.mode} mode
                 </p>
               </div>
@@ -389,10 +389,10 @@ export default function UploadArea({ onResultsChange }: UploadAreaProps) {
                 type="button"
                 id="reset-analysis-button"
                 onClick={handleRemove}
-                className="self-start sm:self-auto inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-[#E6E4DE] bg-white hover:bg-[#FAF9F6] text-xs font-medium text-[#20211F] transition-colors cursor-pointer"
+                className="self-start sm:self-auto inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-[#DCE4D9] bg-white hover:bg-[#F3F6F1] text-xs font-medium text-[#202922] transition-colors cursor-pointer"
               >
                 <svg
-                  className="w-3.5 h-3.5 text-[#73746F]"
+                  className="w-3.5 h-3.5 text-[#6F7970]"
                   fill="none"
                   viewBox="0 0 24 24"
                   strokeWidth={2}
@@ -428,7 +428,7 @@ export default function UploadArea({ onResultsChange }: UploadAreaProps) {
                 </div>
               </div>
 
-              <div className="metric-card rounded-xl p-3 bg-[#F4F7F4] border border-[#CDE0D2]">
+              <div className="metric-card rounded-xl p-3 bg-[#EAF0E8] border border-[#D2E0D0]">
                 <div className="text-2xl font-bold text-[#2D6A4F]">
                   {analysisResult.summary.low_risk}
                 </div>
@@ -442,14 +442,14 @@ export default function UploadArea({ onResultsChange }: UploadAreaProps) {
           {/* Filter Pills */}
           {analysisResult.total_sentences > 0 && (
           <div className="risk-filter flex items-center gap-2 overflow-x-auto pb-1 text-xs">
-            <span className="text-[#73746F] font-medium mr-1">Filter:</span>
+            <span className="text-[#6F7970] font-medium mr-1">Filter:</span>
             <button
               type="button"
               onClick={() => setRiskFilter("ALL")}
               className={`risk-filter-button px-3 py-1.5 rounded-lg font-medium transition-colors cursor-pointer ${
                 riskFilter === "ALL"
-                  ? "bg-[#20211F] text-white"
-                  : "bg-white border border-[#E6E4DE] text-[#73746F] hover:text-[#20211F]"
+                  ? "bg-[#202922] text-white"
+                  : "bg-white border border-[#DCE4D9] text-[#6F7970] hover:text-[#202922]"
               }`}
             >
               All ({analysisResult.total_sentences})
@@ -460,7 +460,7 @@ export default function UploadArea({ onResultsChange }: UploadAreaProps) {
               className={`risk-filter-button px-3 py-1.5 rounded-lg font-medium transition-colors cursor-pointer ${
                 riskFilter === "High"
                   ? "bg-[#9E3628] text-white"
-                  : "bg-white border border-[#E6E4DE] text-[#73746F] hover:text-[#9E3628]"
+                  : "bg-white border border-[#DCE4D9] text-[#6F7970] hover:text-[#9E3628]"
               }`}
             >
               High Risk ({analysisResult.summary.high_risk})
@@ -471,7 +471,7 @@ export default function UploadArea({ onResultsChange }: UploadAreaProps) {
               className={`risk-filter-button px-3 py-1.5 rounded-lg font-medium transition-colors cursor-pointer ${
                 riskFilter === "Moderate"
                   ? "bg-[#975A16] text-white"
-                  : "bg-white border border-[#E6E4DE] text-[#73746F] hover:text-[#975A16]"
+                  : "bg-white border border-[#DCE4D9] text-[#6F7970] hover:text-[#975A16]"
               }`}
             >
               Moderate Risk ({analysisResult.summary.moderate_risk})
@@ -482,7 +482,7 @@ export default function UploadArea({ onResultsChange }: UploadAreaProps) {
               className={`risk-filter-button px-3 py-1.5 rounded-lg font-medium transition-colors cursor-pointer ${
                 riskFilter === "Low"
                   ? "bg-[#2D6A4F] text-white"
-                  : "bg-white border border-[#E6E4DE] text-[#73746F] hover:text-[#2D6A4F]"
+                  : "bg-white border border-[#DCE4D9] text-[#6F7970] hover:text-[#2D6A4F]"
               }`}
             >
               Low Risk ({analysisResult.summary.low_risk})
@@ -493,27 +493,27 @@ export default function UploadArea({ onResultsChange }: UploadAreaProps) {
           {/* Sentence Claims List */}
           <div className="space-y-4">
             {analysisResult.total_sentences === 0 ? (
-              <div className="rounded-xl bg-white border border-[#E6E4DE] p-8 text-center text-[#73746F] text-sm leading-relaxed">
+              <div className="rounded-xl bg-white border border-[#DCE4D9] p-8 text-center text-[#6F7970] text-sm leading-relaxed">
                 {analysisResult.pipeline_info.document_warning ??
                   "No investor-facing claims were detected. Upload a startup pitch deck with product, market, traction, customer, or financial assertions."}
               </div>
             ) : filteredSentences.length === 0 ? (
-              <div className="rounded-xl bg-white border border-[#E6E4DE] p-8 text-center text-[#73746F] text-sm">
+              <div className="rounded-xl bg-white border border-[#DCE4D9] p-8 text-center text-[#6F7970] text-sm">
                 No claims match the selected filter.
               </div>
             ) : (
               filteredSentences.map((item) => (
                 <div
                   key={item.id}
-                  className="claim-card rounded-xl bg-white border border-[#E6E4DE] p-5 sm:p-6 text-left shadow-[0_1px_2px_rgba(0,0,0,0.02)] transition-all hover:border-[#D1CFC7]"
+                  className="claim-card rounded-xl bg-white border border-[#DCE4D9] p-5 sm:p-6 text-left shadow-[0_1px_2px_rgba(0,0,0,0.02)] transition-all hover:border-[#BFCDBE]"
                 >
                   {/* Claim Header */}
                   <div className="flex items-center justify-between gap-3 mb-2">
-                    <span className="text-xs font-medium text-[#73746F]">
+                    <span className="text-xs font-medium text-[#6F7970]">
                       Claim #{item.id}
                     </span>
                     <div className="flex items-center gap-2">
-                      <span className="text-[11px] text-[#73746F]">
+                      <span className="text-[11px] text-[#6F7970]">
                         {Math.round(item.score * 100)}% relative support
                       </span>
                       {item.risk === "High" && (
@@ -527,7 +527,7 @@ export default function UploadArea({ onResultsChange }: UploadAreaProps) {
                         </span>
                       )}
                       {item.risk === "Low" && (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-[#F4F7F4] text-[#2D6A4F] border border-[#CDE0D2]">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-[#EAF0E8] text-[#2D6A4F] border border-[#D2E0D0]">
                           Risk: Low
                         </span>
                       )}
@@ -535,7 +535,7 @@ export default function UploadArea({ onResultsChange }: UploadAreaProps) {
                   </div>
 
                   {/* Sentence Text */}
-                  <p className="text-sm sm:text-base font-medium text-[#20211F] leading-relaxed mb-4">
+                  <p className="text-sm sm:text-base font-medium text-[#202922] leading-relaxed mb-4">
                     &ldquo;{item.text}&rdquo;
                   </p>
 
@@ -543,9 +543,9 @@ export default function UploadArea({ onResultsChange }: UploadAreaProps) {
                   <div className="pt-3.5 border-t border-[#F0EFEB]">
                     {item.question ? (
                       <div>
-                        <div className="flex items-center gap-1.5 mb-1 text-xs font-medium text-[#73746F]">
+                        <div className="flex items-center gap-1.5 mb-1 text-xs font-medium text-[#6F7970]">
                           <svg
-                            className="w-3.5 h-3.5 text-[#426B50]"
+                            className="w-3.5 h-3.5 text-[#315B41]"
                             fill="none"
                             viewBox="0 0 24 24"
                             strokeWidth={2}
@@ -559,7 +559,7 @@ export default function UploadArea({ onResultsChange }: UploadAreaProps) {
                           </svg>
                           Investor Counter-Question
                         </div>
-                        <p className="text-xs sm:text-sm text-[#20211F] font-normal leading-relaxed italic">
+                        <p className="text-xs sm:text-sm text-[#202922] font-normal leading-relaxed italic">
                           &ldquo;{item.question}&rdquo;
                         </p>
                       </div>
