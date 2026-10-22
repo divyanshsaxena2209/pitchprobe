@@ -266,7 +266,7 @@ def test_market_claim_variants_get_different_questions():
         "High",
     )
 
-    assert "attainable share specifically" in directional_share
+    assert "attainable market share specifically" in directional_share
     assert "defined differently from broader analyst categories" in analyst_definitions
     assert "independent sources" in external_tam
     assert len({directional_share, analyst_definitions, external_tam}) == 3
