@@ -2,14 +2,14 @@ name: Backend model integration checks
 
 on:
   push:
-    branches: [feature/deberta-risk-model-loader, staging/local-deberta-smoke-test, feature/question-routing-diversity]
+    branches: [feature/deberta-risk-model-loader, staging/local-deberta-smoke-test, feature/question-routing-diversity, feature/question-routing-followups]
     paths:
       - "backend/**"
       - "README.md"
       - "start_staging_backend.py"
       - ".github/workflows/backend-model-integration.yml"
   pull_request:
-    branches: [master]
+    branches: [master, staging/local-deberta-smoke-test]
     paths:
       - "backend/**"
       - "README.md"
