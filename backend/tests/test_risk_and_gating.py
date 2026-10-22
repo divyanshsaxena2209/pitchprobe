@@ -295,7 +295,7 @@ def test_question_routing_distinguishes_beachhead_from_market_caveats():
 
     assert "beachhead buyer count" in beachhead
     assert "₹18,000" in beachhead
-    assert "independently sourced for TAM" in tam_sam_som
+    assert "supported by independent sources" in tam_sam_som
     assert "SAM/SOM" in tam_sam_som
     assert beachhead != tam_sam_som
 
