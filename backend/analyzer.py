@@ -467,8 +467,8 @@ def _targeted_investor_question(sentence: str, risk: str) -> str:
         and re.search(r"\b(?:external|source|management assumption|not externally validated)\b", text)
     ):
         return (
-            "Which market-sizing inputs are independently sourced for TAM, and which SAM/SOM "
-            "boundaries and adoption assumptions are management estimates that still need validation?"
+            "Which TAM inputs are supported by independent sources, and which SAM/SOM boundaries "
+            "and adoption assumptions remain management estimates that need validation?"
         )
 
     if re.search(
