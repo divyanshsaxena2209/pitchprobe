@@ -401,24 +401,17 @@ def _is_useful_generated_question(question: str) -> bool:
 
 
 def _targeted_investor_question(sentence: str, risk: str) -> str:
-    """Ask a claim-specific evidence question using ordered topic signals.
-
-    Order is intentional: market-sizing language beats the word "forecast";
-    production gates beat generic traction language; and defensibility beats
-    mentions of retention. These priorities prevent broad regex matches from
-    routing a claim to an unrelated question.
-    """
+    """Choose an evidence-seeking question using ordered, claim-specific signals."""
     text = re.sub(r"\s+", " ", sentence.lower()).strip()
 
-    # 1. A capital raise should be challenged on milestones and runway.
+    # Funding ask: focus on uses, milestones, and runway.
     if re.search(r"\b(?:raising|raise|funding ask|use of funds|capital ask)\b", text):
         return (
             "Which measurable milestones will this raise fund, how much runway do they buy, "
             "and what evidence must be achieved before the next funding round?"
         )
 
-    # Team capability gaps must not be mistaken for product privacy claims
-    # (for example, "we need privacy counsel").
+    # Team capability gaps are different from product privacy or manufacturing risks.
     if re.search(
         r"\b(?:founder|co-founder|founding team|leadership team|team lacks|team needs|"
         r"hiring|hire|leader|capability gap|advisor|fractional operations|privacy counsel|"
@@ -430,34 +423,33 @@ def _targeted_investor_question(sentence: str, risk: str) -> str:
             "and what hiring or partner milestone must be met before the next stage?"
         )
 
-    # 2. Explicit production gates and working-capital exposure take priority over
-    # mentions of pilots, deposits, sell-through, or other traction terms.
+    # Working-capital risk should ask about cash exposure, not general demand conversion.
     if re.search(r"\b(?:working[- ]capital|inventory deposits?|tooling deposits?)\b", text):
         return (
             "How much cash will be tied up in tooling and inventory before sell-through, "
             "what demand evidence supports that commitment, and what is the downside cash plan?"
         )
+
+    # Production gates require explicit go/no-go language or a pre-order condition.
+    # Do not infer a production gate from a generic mention of yield, returns, or tooling alone.
     if re.search(
-        r"\b(?:do not place|don't place|before committing|production order|production tooling|"
-        r"gate to production|supplier yield|fit variance|fit-related returns|pre-production|"
-        r"tooling or inventory|manufacturing yield)\b",
+        r"\b(?:do not place|don't place|before committing|gate to production|"
+        r"production order|production tooling)\b",
         text,
-    ):
+    ) and re.search(r"\b(?:until|unless|gate|criteria|deposits?|yield|beta|pre-production)\b", text):
         return (
             "Which pre-production pass criteria must be met for paid deposits, fit/return intent, "
             "quality yield and beta usefulness, and who independently signs off before the order?"
         )
-    if re.search(
-        r"\b(?:supplier|manufactur(?:ing|er)|production|inventory|tooling|yield|hardware|"
-        r"battery|acoustic testing|returns)\b",
-        text,
-    ):
+
+    # A risk statement about margin erosion is different from a go/no-go checklist.
+    if re.search(r"\b(?:can erase margin|erase margins?|margin erosion|risk to gross margin)\b", text):
         return (
-            "What measured supplier yield, fit, reliability and return data support these unit "
-            "assumptions, and what failure threshold would stop production?"
+            "How much gross margin could be lost in downside cases for supplier yield, fit variance, "
+            "microphone performance and returns, and which prototype tests quantify each exposure?"
         )
 
-    # 3. Competitive defensibility beats generic retention/traction routing.
+    # Defensibility should beat a co-occurring mention of retention.
     if re.search(
         r"\b(?:defensib\w*|competitors?|competition|incumbents?|moat|patent|"
         r"competitive advantage|copy|clone|bundl(?:e|ing))\b",
@@ -468,7 +460,17 @@ def _targeted_investor_question(sentence: str, risk: str) -> str:
             "and what evidence shows incumbents cannot bundle or copy it easily?"
         )
 
-    # 4. Market sizing beats a stray word such as "forecast" in a market caveat.
+    # Market sizing: first distinguish an externally sourced TAM from assumed SAM/SOM.
+    if (
+        re.search(r"\btam\b", text)
+        and re.search(r"\b(?:sam|som)\b", text)
+        and re.search(r"\b(?:external|source|management assumption|not externally validated)\b", text)
+    ):
+        return (
+            "Which TAM inputs are supported by independent sources, and which SAM/SOM boundaries "
+            "and adoption assumptions remain management assumptions that need validation?"
+        )
+
     if re.search(
         r"\b(?:tam|sam|som|market size|market share|penetration|beachhead|trillion|"
         r"billion|market estimate|market sizing|serviceable market|reachable market)\b",
@@ -479,15 +481,27 @@ def _targeted_investor_question(sentence: str, risk: str) -> str:
                 "What bottom-up evidence supports Sonora's attainable market share specifically, "
                 "rather than the total category size, and how does the case change at a smaller share?"
             )
+        if re.search(r"\bdefinitions vary by analyst\b", text):
+            return (
+                "How is your SAM defined differently from broader analyst categories, and what "
+                "buyer count, price and adoption assumptions make that boundary defensible?"
+            )
+        # The numeric beachhead calculation is a customer-count/price/adoption question,
+        # even though it labels itself a management assumption.
+        if re.search(r"\b(?:initial beachhead|beachhead:|2\.5m digitally intensive|top \d+ metros)\b", text):
+            return (
+                "How was the beachhead buyer count estimated, what source supports the ₹18,000 "
+                "price point, and what adoption evidence justifies the implied annual spend?"
+            )
         if re.search(r"\b(?:penetration|market share|capture|share of market)\b", text):
             return (
                 "What comparable adoption data and channel-level conversion evidence make this "
                 "penetration target reachable, and how does the estimate change at a lower share?"
             )
-        if re.search(r"\bdefinitions vary by analyst\b", text):
+        if re.search(r"\b(?:beachhead|target segment|professionals|reachable customer)\b", text):
             return (
-                "How is your SAM defined differently from broader analyst categories, and what "
-                "buyer count, price and adoption assumptions make that boundary defensible?"
+                "How was the reachable buyer count derived, what source supports willingness to "
+                "pay at this price, and what adoption evidence supports the obtainable market?"
             )
         if re.search(r"\b(?:external(?:ly)? sourced|external estimate|management assumption|"
                      r"internal assumption|not externally validated|directional model)\b", text):
@@ -495,19 +509,35 @@ def _targeted_investor_question(sentence: str, risk: str) -> str:
                 "Which parts of this market estimate come from independent sources versus "
                 "management assumptions, and how sensitive is it to a narrower customer segment?"
             )
-        if re.search(r"\b(?:beachhead|target segment|professionals|reachable customer)\b", text):
-            return (
-                "How was the reachable buyer count derived, what source supports willingness to "
-                "pay at this price, and what adoption evidence supports the obtainable market?"
-            )
         return (
             "What bottom-up customer count, price and adoption assumptions produce this market "
             "estimate, and which independent sources support each input?"
         )
 
-    # 5. Financial forecasts: separate break-even/cash timing from revenue ambition.
+    # Revenue recognition / bridge definitions are not growth forecasts.
+    if re.search(r"\brevenue is net of (?:discounts?|indirect taxes?|taxes)\b", text):
+        return (
+            "How are discounts and indirect taxes reconciled from gross retail value to reported net "
+            "revenue, and can the bridge be tied to the financial model and channel assumptions?"
+        )
+
+    # Specific usage KPI: define the denominator and observation window.
+    if re.search(r"\bweekly meeting summaries per active user\b|\bsummaries per active user\b", text):
+        return (
+            "How is an active user defined and over what cohort window is this target measured, "
+            "and what instrumented beta data shows users sustain more than three summaries weekly?"
+        )
+
+    # Pilot measurement plans should ask about measurement design before broad traction conversion.
+    if re.search(r"\bpilot with \d+ teams\b", text) and re.search(r"\b(?:measure|weekly active|admin time|renewal intent)\b", text):
+        return (
+            "How will the pilot define and measure weekly active use, admin time saved and renewal intent, "
+            "what baseline will each metric use, and how many teams convert to paid use afterward?"
+        )
+
+    # A forecast / break-even claim is routed here; a statement merely defining net revenue is not.
     if re.search(r"\b(?:break[- ]even|ebitda|cash flow|cash runway|financial plan|"
-                 r"revenue|forecast|year three|fy\d{2}|arr|mrr|valuation)\b", text):
+                 r"forecast|year three|fy\d{2}|arr|mrr|valuation|revenue ambition|path to .{0,20} revenue)\b", text):
         if re.search(r"\b(?:break[- ]even|cash flow|cash runway|working capital)\b", text):
             return (
                 "What monthly gross-margin, fixed-cost and subscription-attach assumptions determine "
@@ -518,16 +548,13 @@ def _targeted_investor_question(sentence: str, risk: str) -> str:
             "forecast, what actuals support them, and how does the downside case change the result?"
         )
 
-    # 6. Technical performance and privacy are distinct review dimensions.
+    # Technical performance is distinct from commercial or production readiness.
     if re.search(r"\b(?:transcription|diarisation|accuracy|latency|sub-\d|model quality|"
-                 r"ai reliability|algorithm|benchmark|response time|technical performance|"
-                 r"microphone performance)\b", text):
+                 r"ai reliability|algorithm|benchmark|response time|technical performance)\b", text):
         return (
             "What controlled benchmark supports this performance claim, what baseline was used, "
             "and how many users, environments and failure cases were measured?"
         )
-
-
 
     if re.search(
         r"\b(?:app connectivity|meeting-platform integration|fully offline|universal integration|"
@@ -540,7 +567,7 @@ def _targeted_investor_question(sentence: str, risk: str) -> str:
             "recording, access, retention and deletion controls work as described?"
         )
 
-    # 7. Pricing, subscription retention, unit economics, CAC and traction.
+    # Subscription prices, retention, unit economics, CAC, and traction.
     if re.search(
         r"(?:[₹$€£]\s?[\d,]+.{0,25}(?:/|\bper\b).{0,12}(?:month|seat)|\bper month\b|"
         r"\bsubscription(?: attach rate)?\b|\bfair-use\b|\bunlimited meeting minutes\b|"
@@ -563,11 +590,13 @@ def _targeted_investor_question(sentence: str, risk: str) -> str:
             "usage, service costs and upgrade behaviour leave sustainable gross margin?"
         )
 
+    # Unit economics comes before generic manufacturing/supplier terms so costs/margins
+    # receive a reconciliation question rather than a production gate.
     if re.search(r"\b(?:unit economics|cogs|gross margin|contribution|manufacturing cost|asp|"
-                 r"fulfilment|fulfillment|warranty|cost per|unit cost)\b", text):
+                 r"landed cost|fulfilment|fulfillment|warranty|cost per|unit cost)\b", text):
         return (
-            "Do these unit economics include discounts, taxes, returns, fulfilment, warranty, "
-            "channel fees and acquisition cost, and which supplier quotes verify each input?"
+            "Do these unit economics reconcile retail price to net revenue and include landed cost, "
+            "discounts, taxes, fulfilment, warranty, channel fees and acquisition cost, and which quotes support them?"
         )
 
     if re.search(r"\b(?:blended cac|customer acquisition cost|cost per acquisition|"
@@ -575,6 +604,16 @@ def _targeted_investor_question(sentence: str, risk: str) -> str:
         return (
             "What paid-channel and referral-cohort data supports this acquisition-cost target, "
             "and does payback remain viable after churn, discounts and gross margin?"
+        )
+
+    if re.search(
+        r"\b(?:supplier|manufactur(?:ing|er)|production|inventory|tooling|yield|hardware|"
+        r"battery|acoustic testing|returns)\b",
+        text,
+    ):
+        return (
+            "What measured supplier yield, fit, reliability and return data support these unit "
+            "assumptions, and what failure threshold would stop production?"
         )
 
     if re.search(r"\b(?:interviews?|waitlist|sign-ups?|paid units|paid deposits|pilot|beta|"
@@ -611,7 +650,6 @@ def _targeted_investor_question(sentence: str, risk: str) -> str:
         "What observable customer result or source evidence supports this statement, "
         "and what evidence would change the conclusion?"
     )
-
 
 def generate_objection_question(sentence: str, risk: str, manager: ModelManager) -> Optional[str]:
     """Generate one targeted question for Moderate/High claims; Low returns None."""
