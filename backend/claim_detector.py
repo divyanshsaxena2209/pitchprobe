@@ -53,7 +53,7 @@ PITCH_TEMPLATE_INSTRUCTION_MARKERS = [
     "ensureslidesarenottextordataheavy",
     "defineyourventurewithashortdeclarativesentence",
     "describethepainofthecustomer",
-    "outlin howthecustomeraddresses".replace(" ", ""),
+    "outlinehowthecustomeraddresses",
     "providecasescustomerinsightscasestudies",
     "demonstrateyourcompanysvalueproposition",
     "providebottomsupmarketsizing",
