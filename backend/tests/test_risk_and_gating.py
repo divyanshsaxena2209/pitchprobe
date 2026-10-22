@@ -279,3 +279,78 @@ def test_planned_subscription_features_do_not_get_retention_cohort_question():
     )
     assert "committed for v1 versus deferred" in question
     assert "cohort data" not in question
+
+
+def test_question_routing_distinguishes_beachhead_from_market_caveats():
+    beachhead = _targeted_investor_question(
+        "Initial beachhead: 2.5M digitally intensive professionals in India's top 8 metros "
+        "(management assumption) x ₹18,000 average device price = ₹450 crore annual device spend.",
+        "Moderate",
+    )
+    tam_sam_som = _targeted_investor_question(
+        "Market TAM is sourced from an external market-research estimate; SAM, SOM and India "
+        "beachhead are management assumptions, not externally validated.",
+        "High",
+    )
+
+    assert "beachhead buyer count" in beachhead
+    assert "₹18,000" in beachhead
+    assert "independently sourced for TAM" in tam_sam_som
+    assert "SAM/SOM" in tam_sam_som
+    assert beachhead != tam_sam_som
+
+
+def test_question_routing_distinguishes_margin_risk_from_production_gate():
+    margin_risk = _targeted_investor_question(
+        "Supplier yield, fit variance, microphone performance and returns can erase margin.",
+        "Moderate",
+    )
+    production_gate = _targeted_investor_question(
+        "Do not place a large production order until 30+ paid deposits and supplier yield meet target.",
+        "Moderate",
+    )
+
+    assert "How much gross margin could be lost" in margin_risk
+    assert "microphone performance" in margin_risk
+    assert "pre-production pass criteria" in production_gate
+    assert margin_risk != production_gate
+
+
+def test_question_routing_prefers_unit_economics_over_generic_manufacturing_route():
+    question = _targeted_investor_question(
+        "Target landed manufacturing cost: ₹6,100; gross margin before fulfilment, warranty "
+        "and channel costs: ~66%.",
+        "Moderate",
+    )
+
+    assert "reconcile retail price to net revenue" in question
+    assert "landed cost" in question
+    assert "supplier yield, fit, reliability and return data" not in question
+
+
+def test_revenue_definition_question_is_not_a_revenue_forecast_question():
+    question = _targeted_investor_question(
+        "Revenue is net of discounts and indirect taxes.",
+        "Moderate",
+    )
+
+    assert "discounts and indirect taxes" in question
+    assert "gross retail value to reported net revenue" in question
+    assert "sales-volume" not in question
+
+
+def test_usage_kpi_and_pilot_plan_get_measurement_specific_questions():
+    usage = _targeted_investor_question(
+        "weekly meeting summaries per active user >3",
+        "High",
+    )
+    pilot = _targeted_investor_question(
+        "Pilot with 10 teams; measure weekly active users, saved admin time and renewal intent.",
+        "Moderate",
+    )
+
+    assert "active user" in usage
+    assert "cohort window" in usage
+    assert "weekly active use" in pilot
+    assert "admin time saved" in pilot
+    assert usage != pilot
