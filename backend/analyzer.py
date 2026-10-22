@@ -401,102 +401,205 @@ def _is_useful_generated_question(question: str) -> bool:
 
 
 def _targeted_investor_question(sentence: str, risk: str) -> str:
-    """Generate one evidence-seeking VC question based on the claim's main topic."""
-    text = sentence.lower()
+    """Ask a claim-specific evidence question using ordered topic signals.
 
-    # Fundraising asks should focus on milestone/use-of-funds discipline rather
-    # than treating the ask as a revenue forecast.
+    Order is intentional: market-sizing language beats the word "forecast";
+    production gates beat generic traction language; and defensibility beats
+    mentions of retention. These priorities prevent broad regex matches from
+    routing a claim to an unrelated question.
+    """
+    text = re.sub(r"\s+", " ", sentence.lower()).strip()
+
+    # 1. A capital raise should be challenged on milestones and runway.
     if re.search(r"\b(?:raising|raise|funding ask|use of funds|capital ask)\b", text):
         return (
             "Which measurable milestones will this raise fund, how much runway do they buy, "
             "and what evidence must be achieved before the next funding round?"
         )
 
-    # Forecasts come before generic conversion/traction matches.
-    if re.search(r"\b(revenue|forecast|financial plan|ebitda|runway|valuation|arr|mrr|year three|fy\d{2})\b", text):
+    # Team capability gaps must not be mistaken for product privacy claims
+    # (for example, "we need privacy counsel").
+    if re.search(
+        r"\b(?:founder|co-founder|founding team|leadership team|team lacks|team needs|"
+        r"hiring|hire|leader|capability gap|advisor|fractional operations|privacy counsel|"
+        r"former product lead|owns customer discovery|supply-chain leader|operations lead)\b",
+        text,
+    ):
         return (
-            "Which assumptions for sales volume, realised price, conversion, and gross "
-            "margin drive this forecast, and what evidence validates them?"
+            "Which critical capability is still missing, who is accountable for closing the gap, "
+            "and what hiring or partner milestone must be met before the next stage?"
         )
 
-    if re.search(r"\b(tam|sam|som|market size|market share|penetration|beachhead|trillion|billion|market estimate|market sizing)\b", text):
+    # 2. Explicit production gates and working-capital exposure take priority over
+    # mentions of pilots, deposits, sell-through, or other traction terms.
+    if re.search(r"\b(?:working[- ]capital|inventory deposits?|tooling deposits?)\b", text):
         return (
-            "What bottom-up assumptions for the reachable customer segment, price, "
-            "and adoption rate support this market estimate?"
+            "How much cash will be tied up in tooling and inventory before sell-through, "
+            "what demand evidence supports that commitment, and what is the downside cash plan?"
+        )
+    if re.search(
+        r"\b(?:do not place|don't place|before committing|production order|production tooling|"
+        r"gate to production|supplier yield|fit variance|fit-related returns|pre-production|"
+        r"tooling or inventory|manufacturing yield)\b",
+        text,
+    ):
+        return (
+            "Which pre-production pass criteria must be met for paid deposits, fit/return intent, "
+            "quality yield and beta usefulness, and who independently signs off before the order?"
+        )
+    if re.search(
+        r"\b(?:supplier|manufactur(?:ing|er)|production|inventory|tooling|yield|hardware|"
+        r"battery|acoustic testing|returns)\b",
+        text,
+    ):
+        return (
+            "What measured supplier yield, fit, reliability and return data support these unit "
+            "assumptions, and what failure threshold would stop production?"
         )
 
-    # A customer profile is not proof of traction; ask about pain and willingness to pay.
-    if re.search(r"\b(customer-facing teams|ideal customer profile|target customer|buyer persona|teams with .{0,30}weekly calls|buyers who need)\b", text):
+    # 3. Competitive defensibility beats generic retention/traction routing.
+    if re.search(
+        r"\b(?:defensib\w*|competitors?|competition|incumbents?|moat|patent|"
+        r"competitive advantage|copy|clone|bundl(?:e|ing))\b",
+        text,
+    ):
         return (
-            "What evidence confirms this target segment has a frequent, costly problem, "
-            "and how many qualified buyers have shown willingness to pay?"
+            "Which customer behaviour or integration creates a durable switching cost, "
+            "and what evidence shows incumbents cannot bundle or copy it easily?"
         )
 
-    # Subscription/tier pricing is different from hardware unit economics.
-    if re.search(r"(?:[₹$€£]\s?[\d,]+.{0,25}(?:/|\bper\b).{0,12}(?:month|seat)|\bper month\b|\bsubscription(?: attach rate)?\b|\bfair-use\b|\bunlimited meeting minutes\b|\bpricing tier\b)", text):
-        if re.search(r"\b(?:attach rate|retention|renewal|churn|cohort)\b", text):
+    # 4. Market sizing beats a stray word such as "forecast" in a market caveat.
+    if re.search(
+        r"\b(?:tam|sam|som|market size|market share|penetration|beachhead|trillion|"
+        r"billion|market estimate|market sizing|serviceable market|reachable market)\b",
+        text,
+    ):
+        if re.search(r"\b(?:directional model|not a forecast of)\b", text) and re.search(r"\bshare\b", text):
             return (
-                "What cohort data shows that subscribers activate, retain and renew at the "
-                "assumed rate, and how does usage vary by plan?"
+                "What bottom-up evidence supports Sonora's attainable market share specifically, "
+                "rather than the total category size, and how does the case change at a smaller share?"
+            )
+        if re.search(r"\b(?:penetration|market share|capture|share of market)\b", text):
+            return (
+                "What comparable adoption data and channel-level conversion evidence make this "
+                "penetration target reachable, and how does the estimate change at a lower share?"
+            )
+        if re.search(r"\bdefinitions vary by analyst\b", text):
+            return (
+                "How is your SAM defined differently from broader analyst categories, and what "
+                "buyer count, price and adoption assumptions make that boundary defensible?"
+            )
+        if re.search(r"\b(?:external(?:ly)? sourced|external estimate|management assumption|"
+                     r"internal assumption|not externally validated|directional model)\b", text):
+            return (
+                "Which parts of this market estimate come from independent sources versus "
+                "management assumptions, and how sensitive is it to a narrower customer segment?"
+            )
+        if re.search(r"\b(?:beachhead|target segment|professionals|reachable customer)\b", text):
+            return (
+                "How was the reachable buyer count derived, what source supports willingness to "
+                "pay at this price, and what adoption evidence supports the obtainable market?"
             )
         return (
-            "What customer research or paid conversion data supports this price tier, and "
-            "do expected usage and service costs leave sustainable gross margin?"
+            "What bottom-up customer count, price and adoption assumptions produce this market "
+            "estimate, and which independent sources support each input?"
         )
 
-    if re.search(r"\b(unit economics|cogs|gross margin|contribution|manufacturing cost|asp|fulfilment|fulfillment|warranty|cost per|unit cost)\b", text):
+    # 5. Financial forecasts: separate break-even/cash timing from revenue ambition.
+    if re.search(r"\b(?:break[- ]even|ebitda|cash flow|cash runway|financial plan|"
+                 r"revenue|forecast|year three|fy\d{2}|arr|mrr|valuation)\b", text):
+        if re.search(r"\b(?:break[- ]even|cash flow|cash runway|working capital)\b", text):
+            return (
+                "What monthly gross-margin, fixed-cost and subscription-attach assumptions determine "
+                "the break-even date, and how much extra runway is needed in the downside case?"
+            )
         return (
-            "Do these unit economics include discounts, returns, fulfilment, warranty, "
-            "channel fees, and acquisition cost, and which supplier quotes support them?"
+            "Which sales-volume, realised-price, conversion and gross margin assumptions drive this "
+            "forecast, what actuals support them, and how does the downside case change the result?"
         )
 
-    if re.search(r"\b(?:blended cac|customer acquisition cost|cost per acquisition|search and referral loops)\b", text):
+    # 6. Technical performance and privacy are distinct review dimensions.
+    if re.search(r"\b(?:transcription|diarisation|accuracy|latency|sub-\d|model quality|"
+                 r"ai reliability|algorithm|benchmark|response time|technical performance|"
+                 r"microphone performance)\b", text):
+        return (
+            "What controlled benchmark supports this performance claim, what baseline was used, "
+            "and how many users, environments and failure cases were measured?"
+        )
+
+
+
+    if re.search(
+        r"\b(?:app connectivity|meeting-platform integration|fully offline|universal integration|"
+        r"cloud ai|user consent|privacy|recording|security|deletion|encrypted|regulatory|"
+        r"compliance|legal)\b",
+        text,
+    ):
+        return (
+            "What happens when connectivity or consent is unavailable, and what tests verify that "
+            "recording, access, retention and deletion controls work as described?"
+        )
+
+    # 7. Pricing, subscription retention, unit economics, CAC and traction.
+    if re.search(
+        r"(?:[₹$€£]\s?[\d,]+.{0,25}(?:/|\bper\b).{0,12}(?:month|seat)|\bper month\b|"
+        r"\bsubscription(?: attach rate)?\b|\bfair-use\b|\bunlimited meeting minutes\b|"
+        r"\bpricing tier\b)",
+        text,
+    ):
+        if re.search(r"\b(?:planned after v1|planned after version 1|post[- ]v1|retention policies|"
+                     r"admin controls|workspace integrations|shared templates)\b", text):
+            return (
+                "Which capabilities are committed for v1 versus deferred, and what buyer evidence "
+                "shows the planned tier's incremental features justify its recurring price?"
+            )
+        if re.search(r"\b(?:attach rate|retention|renewal|churn|cohort|subscriber activation)\b", text):
+            return (
+                "What cohort data shows subscribers activate, retain and renew at the assumed rate, "
+                "and how do usage, support cost and churn differ by plan?"
+            )
+        return (
+            "What customer research or paid conversion data supports this price tier, and do expected "
+            "usage, service costs and upgrade behaviour leave sustainable gross margin?"
+        )
+
+    if re.search(r"\b(?:unit economics|cogs|gross margin|contribution|manufacturing cost|asp|"
+                 r"fulfilment|fulfillment|warranty|cost per|unit cost)\b", text):
+        return (
+            "Do these unit economics include discounts, taxes, returns, fulfilment, warranty, "
+            "channel fees and acquisition cost, and which supplier quotes verify each input?"
+        )
+
+    if re.search(r"\b(?:blended cac|customer acquisition cost|cost per acquisition|"
+                 r"search and referral loops|cac)\b", text):
         return (
             "What paid-channel and referral-cohort data supports this acquisition-cost target, "
-            "and does the payback period remain viable after churn and gross margin?"
+            "and does payback remain viable after churn, discounts and gross margin?"
         )
 
-    if re.search(r"\b(interviews?|waitlist|sign-ups?|paid units|paid deposits|pilot|beta|traction|activation|retention|conversion|weekly active|active users|paying customers|customer count|customers acquired|users acquired)\b", text):
+    if re.search(r"\b(?:interviews?|waitlist|sign-ups?|paid units|paid deposits|pilot|beta|"
+                 r"traction|activation|retention|conversion|weekly active|active users|"
+                 r"paying customers|customer count|customers acquired|users acquired)\b", text):
         return (
             "How many interested users or pilot participants converted to paying customers, "
-            "and what cohort evidence supports that conversion rate?"
+            "over what time window, and what cohort evidence supports that conversion rate?"
         )
 
-    # Team/role language is specific; don't match generic product copy such as "team templates".
-    if re.search(r"\b(founder|co-founder|founding team|leadership team|team lacks|team needs|hiring|hire|leader|capability gap|advisor|fractional operations|privacy counsel|former product lead|owns customer discovery|supply-chain leader|operations lead)\b", text):
+    if re.search(
+        r"\b(?:customer-facing teams|ideal customer profile|target customer|buyer persona|"
+        r"teams with .{0,30}weekly calls|buyers who need|customer segment)\b",
+        text,
+    ):
         return (
-            "Which critical capability is currently missing, who will own it, and what "
-            "is the hiring or partner timeline before the next milestone?"
+            "What evidence confirms this target segment has a frequent, costly problem, "
+            "and how many qualified buyers have demonstrated willingness to pay?"
         )
 
-    if re.search(r"\b(competitors?|competition|incumbents?|moat|defensib|patent|competitive advantage|clone|copy)\b", text):
+    if re.search(r"\b(?:reduces?|saves?|improves?|faster|better|industry.leading|best.in.class|"
+                 r"seamless|significant|unmatched|leading|strong|large|massive|revolutionary)\b", text):
         return (
-            "What prevents established competitors from bundling or copying this, and "
-            "what evidence shows customers would switch to your product?"
-        )
-
-    if re.search(r"\b(transcription|diarisation|accuracy|latency|sub-\d|model quality|ai reliability|algorithm|benchmark|response time|technical performance)\b", text):
-        return (
-            "What controlled benchmark supports this performance claim, what baseline "
-            "did you compare against, and how many users or trials were measured?"
-        )
-
-    if re.search(r"\b(app connectivity|meeting-platform integration|fully offline|universal integration|cloud ai|user consent|privacy|recording|security|deletion|encrypted|regulatory|compliance|legal)\b", text):
-        return (
-            "What happens when connectivity or consent is unavailable, and what tests verify "
-            "that the product respects user permissions across supported platforms?"
-        )
-
-    if re.search(r"\b(supplier|manufactur|production|inventory|tooling|yield|hardware|battery|fit-related|returns|supply.chain|acoustic testing)\b", text):
-        return (
-            "What pre-production test results, supplier commitments, or yield data must "
-            "be met before you commit to tooling or inventory spend?"
-        )
-
-    if re.search(r"\b(reduces?|saves?|improves?|faster|better|industry.leading|best.in.class|seamless|significant|unmatched|leading|strong|large|massive|revolutionary)\b", text):
-        return (
-            "What measurable customer outcome or independent benchmark supports this "
-            "benefit, and what baseline are you comparing it with?"
+            "What measured customer outcome supports this benefit, what baseline is it compared "
+            "against, and what result would falsify the claim?"
         )
 
     if risk == "High":
@@ -506,7 +609,7 @@ def _targeted_investor_question(sentence: str, risk: str) -> str:
         )
     return (
         "What observable customer result or source evidence supports this statement, "
-        "and what would falsify it?"
+        "and what evidence would change the conclusion?"
     )
 
 
