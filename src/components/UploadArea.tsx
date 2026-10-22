@@ -457,7 +457,7 @@ export default function UploadArea({ onResultsChange }: UploadAreaProps) {
             <button
               type="button"
               onClick={() => setRiskFilter("High")}
-              className={`px-3 py-1.5 rounded-lg font-medium transition-colors cursor-pointer ${
+              className={`risk-filter-button px-3 py-1.5 rounded-lg font-medium transition-colors cursor-pointer ${
                 riskFilter === "High"
                   ? "bg-[#9E3628] text-white"
                   : "bg-white border border-[#E6E4DE] text-[#73746F] hover:text-[#9E3628]"
@@ -468,7 +468,7 @@ export default function UploadArea({ onResultsChange }: UploadAreaProps) {
             <button
               type="button"
               onClick={() => setRiskFilter("Moderate")}
-              className={`px-3 py-1.5 rounded-lg font-medium transition-colors cursor-pointer ${
+              className={`risk-filter-button px-3 py-1.5 rounded-lg font-medium transition-colors cursor-pointer ${
                 riskFilter === "Moderate"
                   ? "bg-[#975A16] text-white"
                   : "bg-white border border-[#E6E4DE] text-[#73746F] hover:text-[#975A16]"
@@ -479,7 +479,7 @@ export default function UploadArea({ onResultsChange }: UploadAreaProps) {
             <button
               type="button"
               onClick={() => setRiskFilter("Low")}
-              className={`px-3 py-1.5 rounded-lg font-medium transition-colors cursor-pointer ${
+              className={`risk-filter-button px-3 py-1.5 rounded-lg font-medium transition-colors cursor-pointer ${
                 riskFilter === "Low"
                   ? "bg-[#2D6A4F] text-white"
                   : "bg-white border border-[#E6E4DE] text-[#73746F] hover:text-[#2D6A4F]"
