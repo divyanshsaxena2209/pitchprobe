@@ -2,16 +2,18 @@ name: Backend model integration checks
 
 on:
   push:
-    branches: [feature/deberta-risk-model-loader]
+    branches: [feature/deberta-risk-model-loader, staging/local-deberta-smoke-test, feature/question-routing-diversity, feature/question-routing-followups, feature/question-routing-final-pass, feature/detect-pitch-deck-templates]
     paths:
       - "backend/**"
       - "README.md"
+      - "start_staging_backend.py"
       - ".github/workflows/backend-model-integration.yml"
   pull_request:
-    branches: [master]
+    branches: [master, staging/local-deberta-smoke-test]
     paths:
       - "backend/**"
       - "README.md"
+      - "start_staging_backend.py"
       - ".github/workflows/backend-model-integration.yml"
 
 permissions:
@@ -39,6 +41,9 @@ jobs:
         run: |
           python -m pip install -r backend/requirements.txt
           python -m pip install pytest pytest-asyncio httpx reportlab
+
+      - name: Check local staging launcher syntax
+        run: python -m py_compile start_staging_backend.py
 
       - name: Run backend regression suite
         env:

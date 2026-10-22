@@ -205,3 +205,204 @@ def test_fundraise_and_connectivity_claims_get_relevant_questions():
     )
     assert "connectivity" in connectivity
     assert "consent" in connectivity
+
+
+def test_question_routing_prioritizes_market_over_forecast_wording():
+    # "Not a forecast" is a caveat about market sizing, not a financial forecast.
+    question = _targeted_investor_question(
+        "Market sizing is a directional model, not a forecast of Sonora's share.",
+        "High",
+    )
+    assert "market" in question.lower()
+    assert "sales-volume" not in question.lower()
+    assert "gross-margin assumptions drive this forecast" not in question.lower()
+
+
+def test_question_routing_prioritizes_defensibility_over_retention():
+    question = _targeted_investor_question(
+        "Our defensibility must come from low-friction UX, integrations and retention.",
+        "Moderate",
+    )
+    assert "switching cost" in question.lower()
+    assert "cohort data" not in question.lower()
+
+
+def test_question_routing_prioritizes_production_gates_over_traction():
+    question = _targeted_investor_question(
+        "Do not place a large production order until 30+ paid deposits and supplier yield meet target.",
+        "Moderate",
+    )
+    assert "pre-production pass criteria" in question.lower()
+    assert "converted to paying customers" not in question.lower()
+
+
+def test_question_routing_handles_working_capital_and_market_scope():
+    working_capital = _targeted_investor_question(
+        "Tooling and inventory deposits create working-capital risk before sell-through is proven.",
+        "Moderate",
+    )
+    assert "cash will be tied up" in working_capital.lower()
+    assert "downside cash plan" in working_capital.lower()
+
+    market = _targeted_investor_question(
+        "TAM is from an external estimate; SAM and SOM are management assumptions, not externally validated.",
+        "High",
+    )
+    assert "independent sources" in market.lower()
+    assert "management assumptions" in market.lower()
+
+
+def test_market_claim_variants_get_different_questions():
+    directional_share = _targeted_investor_question(
+        "Market sizing is a directional model, not a forecast of Sonora's share.",
+        "High",
+    )
+    analyst_definitions = _targeted_investor_question(
+        "Definitions vary by analyst; our SAM is an internal assumption, not a published market figure.",
+        "Moderate",
+    )
+    external_tam = _targeted_investor_question(
+        "TAM is sourced from an external market-research estimate; SAM and SOM are management assumptions, not externally validated.",
+        "High",
+    )
+
+    assert "attainable market share specifically" in directional_share
+    assert "defined differently from broader analyst categories" in analyst_definitions
+    assert "independent sources" in external_tam
+    assert len({directional_share, analyst_definitions, external_tam}) == 3
+
+
+def test_planned_subscription_features_do_not_get_retention_cohort_question():
+    question = _targeted_investor_question(
+        "₹899 per seat per month for admin controls, retention policies, shared templates and workspace integrations; planned after v1.",
+        "High",
+    )
+    assert "committed for v1 versus deferred" in question
+    assert "cohort data" not in question
+
+
+def test_question_routing_distinguishes_beachhead_from_market_caveats():
+    beachhead = _targeted_investor_question(
+        "Initial beachhead: 2.5M digitally intensive professionals in India's top 8 metros "
+        "(management assumption) x ₹18,000 average device price = ₹450 crore annual device spend.",
+        "Moderate",
+    )
+    tam_sam_som = _targeted_investor_question(
+        "Market TAM is sourced from an external market-research estimate; SAM, SOM and India "
+        "beachhead are management assumptions, not externally validated.",
+        "High",
+    )
+
+    assert "beachhead buyer count" in beachhead
+    assert "₹18,000" in beachhead
+    assert "supported by independent sources" in tam_sam_som
+    assert "SAM/SOM" in tam_sam_som
+    assert beachhead != tam_sam_som
+
+
+def test_question_routing_distinguishes_margin_risk_from_production_gate():
+    margin_risk = _targeted_investor_question(
+        "Supplier yield, fit variance, microphone performance and returns can erase margin.",
+        "Moderate",
+    )
+    production_gate = _targeted_investor_question(
+        "Do not place a large production order until 30+ paid deposits and supplier yield meet target.",
+        "Moderate",
+    )
+
+    assert "How much gross margin could be lost" in margin_risk
+    assert "microphone performance" in margin_risk
+    assert "pre-production pass criteria" in production_gate
+    assert margin_risk != production_gate
+
+
+def test_question_routing_prefers_unit_economics_over_generic_manufacturing_route():
+    question = _targeted_investor_question(
+        "Target landed manufacturing cost: ₹6,100; gross margin before fulfilment, warranty "
+        "and channel costs: ~66%.",
+        "Moderate",
+    )
+
+    assert "reconcile retail price to net revenue" in question
+    assert "landed cost" in question
+    assert "supplier yield, fit, reliability and return data" not in question
+
+
+def test_revenue_definition_question_is_not_a_revenue_forecast_question():
+    question = _targeted_investor_question(
+        "Revenue is net of discounts and indirect taxes.",
+        "Moderate",
+    )
+
+    assert "discounts and indirect taxes" in question
+    assert "gross retail value to reported net revenue" in question
+    assert "sales-volume" not in question
+
+
+def test_usage_kpi_and_pilot_plan_get_measurement_specific_questions():
+    usage = _targeted_investor_question(
+        "weekly meeting summaries per active user >3",
+        "High",
+    )
+    pilot = _targeted_investor_question(
+        "Pilot with 10 teams; measure weekly active users, saved admin time and renewal intent.",
+        "Moderate",
+    )
+
+    assert "active user" in usage
+    assert "cohort window" in usage
+    assert "weekly active use" in pilot
+    assert "admin time saved" in pilot
+    assert usage != pilot
+
+
+def test_former_product_lead_claim_probes_track_record_not_team_gap():
+    background = _targeted_investor_question(
+        "Former product lead at a fictional collaboration SaaS scale-up; "
+        "owns customer discovery, pricing and distribution.",
+        "High",
+    )
+    current_gap = _targeted_investor_question(
+        "No founder has scaled a consumer hardware brand end-to-end.",
+        "Moderate",
+    )
+
+    assert "measurable customer-discovery" in background
+    assert "metrics or references" in background
+    assert "critical capability is still missing" in current_gap
+    assert background != current_gap
+
+
+def test_next_proof_point_beta_is_distinct_from_production_gate():
+    proof_point = _targeted_investor_question(
+        "Next proof point: 50-person closed beta, pre-registered success metrics, "
+        "and at least 30 paid deposits before committing to production tooling.",
+        "Moderate",
+    )
+    production_gate = _targeted_investor_question(
+        "Do not place a large production order until: 30+ paid deposits, "
+        "fit-related return intent below 8%, 90%+ of beta summaries judged useful, "
+        "and supplier yield meets target.",
+        "Moderate",
+    )
+
+    assert "pre-registered pass/fail metrics" in proof_point
+    assert "50-person beta" in proof_point
+    assert "pre-production pass criteria" in production_gate
+    assert proof_point != production_gate
+
+
+def test_year_five_revenue_ambition_is_distinct_from_year_three_conversion_case():
+    year_five = _targeted_investor_question(
+        "$28M Revenue ambition based on 100k annual devices + subscriptions.",
+        "Moderate",
+    )
+    year_three = _targeted_investor_question(
+        "A path to 42 crore revenue in year three—if conversion holds.",
+        "Moderate",
+    )
+
+    assert "split between device sales and recurring subscriptions" in year_five
+    assert "100,000 annual devices" in year_five
+    assert "paid-conversion rate and unit volume" in year_three
+    assert year_five != year_three

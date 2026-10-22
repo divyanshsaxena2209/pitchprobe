@@ -64,6 +64,18 @@ PitchProbe includes a four-label DeBERTa fine-tuning pipeline and a baseline eva
 
 The backend can load a three-label risk classifier from a local checkpoint or a Hugging Face Hub model repository. This is **opt-in**; with no `PITCHPROBE_CLASSIFIER_PATH`, PitchProbe continues using the original `cross-encoder/nli-deberta-v3-base` classification path. The question-generation code and its default targeted-rule behavior are unchanged.
 
+### Local Windows staging launcher
+
+Use a disposable staging branch first; this does not turn on the fine-tuned classifier in your current production branch by itself.
+
+1. In PowerShell, open the PitchProbe repository, check that you have no uncommitted changes, then fetch and switch to `staging/local-deberta-smoke-test`.
+2. Install the backend dependencies if needed: `python -m pip install -r backend/requirements.txt`.
+3. Start the staging backend with `python .\start_staging_backend.py`.
+4. When prompted, enter a dedicated Hugging Face read-only token with access to the private checkpoint. The script validates the pinned revision and LOW/MODERATE/HIGH label mapping, starts the regular Windows-aware backend launcher, waits for model loading, then checks `/api/health` reports the exact model and `classifier_mode=fine_tuned`.
+5. If the backend falls back to NLI or the checkpoint fails to load, the staging launcher stops instead of silently letting you assume the fine-tuned model is active. On successful verification, keep the terminal open; `Ctrl+C` stops staging.
+
+The script never writes the token to `.env.local` or the repository. Question generation is kept on the existing targeted-question rules through `PITCHPROBE_USE_FLAN_T5=0`. Do not merge this staging-only branch to `master` until the local smoke test passes.
+
 ### Staging checkpoint selected (2026-10-21)
 
 The current experimental checkpoint is hosted privately at `divstu/pitchprobe-deberta-claims-verified-v2`, pinned to revision `5771ca4cdbc6afc05bdb0baec92409c7f02e9be6`. The exact non-secret settings are in [`backend/.env.staging.example`](backend/.env.staging.example). Do not commit an access token.
