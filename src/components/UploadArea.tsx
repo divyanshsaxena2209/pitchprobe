@@ -195,7 +195,7 @@ export default function UploadArea({ onResultsChange }: UploadAreaProps) {
     : [];
 
   return (
-    <div className="w-full max-w-2xl mx-auto text-left">
+    <div className="upload-area w-full max-w-2xl mx-auto text-left">
       {/* Hidden native file input */}
       <input
         ref={fileInputRef}
@@ -214,7 +214,7 @@ export default function UploadArea({ onResultsChange }: UploadAreaProps) {
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
-          className={`relative w-full rounded-2xl bg-white border transition-all duration-200 p-8 sm:p-10 text-center ${
+          className={`upload-dropzone relative w-full rounded-2xl bg-white border transition-all duration-200 p-8 sm:p-10 text-center ${
             isDragging
               ? "border-[#426B50] bg-[#F4F7F4] ring-2 ring-[#426B50]/20"
               : errorMessage
@@ -259,7 +259,7 @@ export default function UploadArea({ onResultsChange }: UploadAreaProps) {
                 type="button"
                 id="choose-pdf-button"
                 onClick={handleChooseClick}
-                className="inline-flex items-center justify-center px-5 py-2.5 rounded-lg bg-[#426B50] hover:bg-[#365741] text-white text-sm font-medium transition-colors shadow-sm cursor-pointer focus-visible:ring-2 focus-visible:ring-[#426B50] focus-visible:ring-offset-2"
+                className="primary-action inline-flex items-center justify-center px-5 py-2.5 rounded-lg bg-[#426B50] hover:bg-[#365741] text-white text-sm font-medium transition-colors shadow-sm cursor-pointer focus-visible:ring-2 focus-visible:ring-[#426B50] focus-visible:ring-offset-2"
               >
                 <svg
                   className="w-4 h-4 mr-2"
@@ -325,7 +325,7 @@ export default function UploadArea({ onResultsChange }: UploadAreaProps) {
                   id="analyze-deck-button"
                   onClick={handleAnalyzeClick}
                   disabled={isAnalyzing}
-                  className="w-full sm:w-auto flex-1 inline-flex items-center justify-center px-4 py-2.5 rounded-lg bg-[#426B50] hover:bg-[#365741] text-white text-sm font-medium transition-colors shadow-sm cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-[#426B50] focus-visible:ring-offset-2"
+                  className="primary-action w-full sm:w-auto flex-1 inline-flex items-center justify-center px-4 py-2.5 rounded-lg bg-[#426B50] hover:bg-[#365741] text-white text-sm font-medium transition-colors shadow-sm cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-[#426B50] focus-visible:ring-offset-2"
                 >
                   {isAnalyzing ? (
                     <>
@@ -359,7 +359,7 @@ export default function UploadArea({ onResultsChange }: UploadAreaProps) {
                   id="remove-file-button"
                   onClick={handleRemove}
                   disabled={isAnalyzing}
-                  className="w-full sm:w-auto inline-flex items-center justify-center px-3.5 py-2.5 rounded-lg border border-[#E6E4DE] bg-white hover:bg-[#FAF9F6] text-[#73746F] hover:text-[#20211F] text-sm font-medium transition-colors cursor-pointer disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-[#426B50] focus-visible:ring-offset-2"
+                  className="secondary-action w-full sm:w-auto inline-flex items-center justify-center px-3.5 py-2.5 rounded-lg border border-[#E6E4DE] bg-white hover:bg-[#FAF9F6] text-[#73746F] hover:text-[#20211F] text-sm font-medium transition-colors cursor-pointer disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-[#426B50] focus-visible:ring-offset-2"
                 >
                   Remove
                 </button>
@@ -371,7 +371,7 @@ export default function UploadArea({ onResultsChange }: UploadAreaProps) {
         /* Results View */
         <div className="w-full space-y-6">
           {/* Top Summary Bar */}
-          <div className="rounded-2xl bg-white border border-[#E6E4DE] p-6 shadow-sm">
+          <div className="results-overview rounded-2xl bg-white border border-[#E6E4DE] p-6 shadow-sm">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-[#E6E4DE]">
               <div>
                 <span className="text-[11px] font-semibold tracking-wider text-[#73746F] uppercase">
@@ -410,7 +410,7 @@ export default function UploadArea({ onResultsChange }: UploadAreaProps) {
 
             {/* Metric Counters */}
             <div className="grid grid-cols-3 gap-3 pt-5 text-center">
-              <div className="rounded-xl p-3 bg-[#FAF0EE] border border-[#F2CDC7]">
+              <div className="metric-card rounded-xl p-3 bg-[#FAF0EE] border border-[#F2CDC7]">
                 <div className="text-2xl font-bold text-[#9E3628]">
                   {analysisResult.summary.high_risk}
                 </div>
@@ -419,7 +419,7 @@ export default function UploadArea({ onResultsChange }: UploadAreaProps) {
                 </div>
               </div>
 
-              <div className="rounded-xl p-3 bg-[#FFF9EB] border border-[#FCE3AC]">
+              <div className="metric-card rounded-xl p-3 bg-[#FFF9EB] border border-[#FCE3AC]">
                 <div className="text-2xl font-bold text-[#975A16]">
                   {analysisResult.summary.moderate_risk}
                 </div>
@@ -428,7 +428,7 @@ export default function UploadArea({ onResultsChange }: UploadAreaProps) {
                 </div>
               </div>
 
-              <div className="rounded-xl p-3 bg-[#F4F7F4] border border-[#CDE0D2]">
+              <div className="metric-card rounded-xl p-3 bg-[#F4F7F4] border border-[#CDE0D2]">
                 <div className="text-2xl font-bold text-[#2D6A4F]">
                   {analysisResult.summary.low_risk}
                 </div>
@@ -441,12 +441,12 @@ export default function UploadArea({ onResultsChange }: UploadAreaProps) {
 
           {/* Filter Pills */}
           {analysisResult.total_sentences > 0 && (
-          <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs">
+          <div className="risk-filter flex items-center gap-2 overflow-x-auto pb-1 text-xs">
             <span className="text-[#73746F] font-medium mr-1">Filter:</span>
             <button
               type="button"
               onClick={() => setRiskFilter("ALL")}
-              className={`px-3 py-1.5 rounded-lg font-medium transition-colors cursor-pointer ${
+              className={`risk-filter-button px-3 py-1.5 rounded-lg font-medium transition-colors cursor-pointer ${
                 riskFilter === "ALL"
                   ? "bg-[#20211F] text-white"
                   : "bg-white border border-[#E6E4DE] text-[#73746F] hover:text-[#20211F]"
@@ -505,7 +505,7 @@ export default function UploadArea({ onResultsChange }: UploadAreaProps) {
               filteredSentences.map((item) => (
                 <div
                   key={item.id}
-                  className="rounded-xl bg-white border border-[#E6E4DE] p-5 sm:p-6 text-left shadow-[0_1px_2px_rgba(0,0,0,0.02)] transition-all hover:border-[#D1CFC7]"
+                  className="claim-card rounded-xl bg-white border border-[#E6E4DE] p-5 sm:p-6 text-left shadow-[0_1px_2px_rgba(0,0,0,0.02)] transition-all hover:border-[#D1CFC7]"
                 >
                   {/* Claim Header */}
                   <div className="flex items-center justify-between gap-3 mb-2">
@@ -593,7 +593,7 @@ export default function UploadArea({ onResultsChange }: UploadAreaProps) {
       {errorMessage && (
         <div
           role="alert"
-          className="mt-4 p-3.5 rounded-xl bg-[#FDF4F3] border border-[#F2C5C0] flex items-start gap-2.5 text-left"
+          className="error-panel mt-4 p-3.5 rounded-xl bg-[#FDF4F3] border border-[#F2C5C0] flex items-start gap-2.5 text-left"
         >
           <svg
             className="w-5 h-5 text-[#B94A38] shrink-0 mt-0.5"
