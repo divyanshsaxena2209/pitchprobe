@@ -1,27 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import UploadArea from "@/components/UploadArea";
 import ProductExample from "@/components/ProductExample";
 
 export default function Home() {
   const [hasResults, setHasResults] = useState(false);
   const [showUploader, setShowUploader] = useState(false);
-  const uploadSectionRef = useRef<HTMLElement | null>(null);
-
-  useEffect(() => {
-    if (showUploader) {
-      uploadSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
-  }, [showUploader]);
-
-  const handleStartAnalysis = () => {
-    if (showUploader) {
-      uploadSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-      return;
-    }
-    setShowUploader(true);
-  };
 
   return (
     <div className="app-shell">
@@ -38,76 +23,70 @@ export default function Home() {
         </div>
       </header>
 
-      <main className="main-stage">
-        <div className={`landing-shell ${hasResults ? "landing-shell--results" : ""}`}>
-          <section className={`hero-section ${hasResults ? "hero-section--results" : ""}`} aria-labelledby="hero-title">
-            <div className="hero-copy">
-              <p className="hero-kicker">Investor-readiness review</p>
-              <h1 className="hero-title" id="hero-title">Know what an investor might question.</h1>
-              <p className="hero-description">
-                A sharper read on your pitch deck. Surface vague claims, see where the risk sits,
-                and get the questions an investor is likely to ask.
+      <main className={`main-stage ${showUploader ? "main-stage--workflow" : ""}`}>
+        {!showUploader ? (
+          <div className="landing-shell">
+            <section className="hero-section" aria-labelledby="hero-title">
+              <div className="hero-copy">
+                <p className="hero-kicker">Investor-readiness review</p>
+                <h1 className="hero-title" id="hero-title">Know what an investor might question.</h1>
+                <p className="hero-description">
+                  A sharper read on your pitch deck. Surface vague claims, see where the risk sits,
+                  and get the questions an investor is likely to ask.
+                </p>
+              </div>
+
+              <div className="process-strip" aria-label="How PitchProbe works">
+                <div className="process-step">
+                  <span className="process-index">01</span>
+                  <div>
+                    <p className="process-title">Scan the claims</p>
+                    <p className="process-copy">Pull out the statements that need a closer look.</p>
+                  </div>
+                </div>
+                <div className="process-step">
+                  <span className="process-index">02</span>
+                  <div>
+                    <p className="process-title">Rank by risk</p>
+                    <p className="process-copy">Separate high-risk claims from more grounded ones.</p>
+                  </div>
+                </div>
+                <div className="process-step">
+                  <span className="process-index">03</span>
+                  <div>
+                    <p className="process-title">Ask sharper questions</p>
+                    <p className="process-copy">Prepare for the evidence an investor may request.</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="hero-action">
+                <button type="button" className="landing-cta" onClick={() => setShowUploader(true)}>
+                  Analyse pitch deck
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path d="M5 12h14m-6-6 6 6-6 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </button>
+                <p className="hero-action-note">PDF only · Up to 20 MB · No extra setup</p>
+              </div>
+            </section>
+
+            <ProductExample />
+          </div>
+        ) : (
+          <div className={`workflow-shell ${hasResults ? "workflow-shell--results" : ""}`}>
+            <div className="workflow-heading">
+              <p className="section-kicker">{hasResults ? "ANALYSIS REPORT" : "PITCH DECK REVIEW"}</p>
+              <h1>{hasResults ? "Your claims, reviewed." : "Analyse your pitch deck"}</h1>
+              <p>
+                {hasResults
+                  ? "Browse claims by topic and risk. Higher-risk claims appear first within each section."
+                  : "Upload a PDF to see which claims may raise questions and what evidence an investor may ask for."}
               </p>
             </div>
-
-            {!hasResults && (
-              <>
-                <div className="process-strip" aria-label="How PitchProbe works">
-                  <div className="process-step">
-                    <span className="process-index">01</span>
-                    <div>
-                      <p className="process-title">Scan the claims</p>
-                      <p className="process-copy">Pull out the statements that need a closer look.</p>
-                    </div>
-                  </div>
-                  <div className="process-step">
-                    <span className="process-index">02</span>
-                    <div>
-                      <p className="process-title">Rank by risk</p>
-                      <p className="process-copy">Separate high-risk claims from more grounded ones.</p>
-                    </div>
-                  </div>
-                  <div className="process-step">
-                    <span className="process-index">03</span>
-                    <div>
-                      <p className="process-title">Ask sharper questions</p>
-                      <p className="process-copy">Prepare for the evidence an investor may request.</p>
-                    </div>
-                  </div>
-                </div>
-
-
-              </>
-            )}
-          </section>
-
-          {!showUploader && !hasResults && <ProductExample />}
-
-          {!hasResults && (
-            <div className="hero-action">
-              <button type="button" className="landing-cta" onClick={handleStartAnalysis}>
-                Analyse pitch deck
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                  <path d="M5 12h14m-6-6 6 6-6 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              </button>
-              <p className="hero-action-note">PDF only · Up to 20 MB · No extra setup</p>
-            </div>
-          )}
-
-          {showUploader && (
-            <section className="uploader-section" ref={uploadSectionRef} aria-labelledby="upload-section-title">
-              {!hasResults && (
-                <div className="uploader-heading">
-                  <p className="section-kicker">Start here</p>
-                  <h2 id="upload-section-title">Upload your pitch deck</h2>
-                  <p>Choose a PDF to review its investor-facing claims and counter-questions.</p>
-                </div>
-              )}
-              <UploadArea onResultsChange={setHasResults} />
-            </section>
-          )}
-        </div>
+            <UploadArea onResultsChange={setHasResults} />
+          </div>
+        )}
       </main>
     </div>
   );
