@@ -8,6 +8,54 @@ function formatFileSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+
+type ClaimCategory =
+  | "Traction & Customers"
+  | "Market & Competition"
+  | "Financials & Unit Economics"
+  | "Product & Performance"
+  | "Operations & Team"
+  | "Responsibility & Compliance"
+  | "General Claims";
+
+const CATEGORY_ORDER: ClaimCategory[] = [
+  "Traction & Customers",
+  "Market & Competition",
+  "Financials & Unit Economics",
+  "Product & Performance",
+  "Operations & Team",
+  "Responsibility & Compliance",
+  "General Claims",
+];
+
+function getClaimCategory(text: string): ClaimCategory {
+  const claim = text.toLowerCase();
+
+  if (/environment|sustainab|carbon|emission|privacy|compliance|regulat|legal|certif|data protection|ethical|safety/.test(claim)) {
+    return "Responsibility & Compliance";
+  }
+  if (/supplier|inventory|manufactur|production|factory|founder|team|employee|operations|fulfil|fulfill|capacity|shipping|supply chain|leadership|hiring|warehouse|tooling/.test(claim)) {
+    return "Operations & Team";
+  }
+  if (/revenue|profit|margin|\bcac\b|acquisition cost|\bcosts?\b|\bprice\b|\basp\b|burn rate|runway|cash|forecast|funding|valuation|contribution|payback|financial|ebitda|\broi\b|gross order value|unit economics|capital|budget|expense|discount|tax|working capital/.test(claim)) {
+    return "Financials & Unit Economics";
+  }
+  if (/customer|users?|sign.?ups?|reservations?|sales|sold|purchase|retention|conversion|adoption|product.market fit|churn|repeat|orders?|demand|willingness to pay|surveys?|interviews?|pilot|activation|downloads?|subscribers?/.test(claim)) {
+    return "Traction & Customers";
+  }
+  if (/market|competit|competitor|\btam\b|\bsam\b|\bsom\b|addressable|market share|industry|moat|segment|penetration|substitute|rival|category size/.test(claim)) {
+    return "Market & Competition";
+  }
+  if (/product|performance|comfort|fit consistency|quality|feature|reliab|test|prototype|technical|design|material|durability|clinical|accuracy|benchmark|functionality/.test(claim)) {
+    return "Product & Performance";
+  }
+  return "General Claims";
+}
+
+function riskRank(risk: SentenceAnalysis["risk"]): number {
+  return risk === "High" ? 0 : risk === "Moderate" ? 1 : 2;
+}
+
 export interface SentenceAnalysis {
   id: number;
   text: string;
@@ -50,6 +98,7 @@ export default function UploadArea({ onResultsChange }: UploadAreaProps) {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
   const [riskFilter, setRiskFilter] = useState<"ALL" | "High" | "Moderate" | "Low">("ALL");
+  const [categoryFilter, setCategoryFilter] = useState<"ALL" | ClaimCategory>("ALL");
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -120,6 +169,8 @@ export default function UploadArea({ onResultsChange }: UploadAreaProps) {
     setFile(null);
     setErrorMessage(null);
     setAnalysisResult(null);
+    setRiskFilter("ALL");
+    setCategoryFilter("ALL");
     onResultsChange?.(false);
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
@@ -182,17 +233,46 @@ export default function UploadArea({ onResultsChange }: UploadAreaProps) {
     }
   };
 
-  const filteredSentences = analysisResult
-    ? analysisResult.sentences
-        .filter((s) => (riskFilter === "ALL" ? true : s.risk === riskFilter))
-        .sort((a, b) => {
-          // Put question-bearing claims first, then order each group by
-          // the displayed confidence percentage from highest to lowest.
-          if (a.question && !b.question) return -1;
-          if (!a.question && b.question) return 1;
-          return b.score - a.score;
-        })
+  const categorizedSentences = analysisResult
+    ? analysisResult.sentences.map((item) => ({
+        ...item,
+        category: getClaimCategory(item.text),
+      }))
     : [];
+
+  const filteredSentences = categorizedSentences
+    .filter((item) => (riskFilter === "ALL" ? true : item.risk === riskFilter))
+    .sort((a, b) => {
+      const riskDifference = riskRank(a.risk) - riskRank(b.risk);
+      if (riskDifference !== 0) return riskDifference;
+      return b.score - a.score;
+    });
+
+  const availableCategories = CATEGORY_ORDER.filter((category) =>
+    categorizedSentences.some((item) => item.category === category)
+  );
+
+  const categoryGroups = (
+    categoryFilter === "ALL"
+      ? availableCategories
+      : availableCategories.filter((category) => category === categoryFilter)
+  )
+    .map((category) => ({
+      category,
+      claims: filteredSentences.filter((item) => item.category === category),
+    }))
+    .filter((group) => group.claims.length > 0)
+    .sort((a, b) => {
+      const aTopRisk = Math.min(...a.claims.map((item) => riskRank(item.risk)));
+      const bTopRisk = Math.min(...b.claims.map((item) => riskRank(item.risk)));
+      if (aTopRisk !== bTopRisk) return aTopRisk - bTopRisk;
+
+      const aHighCount = a.claims.filter((item) => item.risk === "High").length;
+      const bHighCount = b.claims.filter((item) => item.risk === "High").length;
+      if (aHighCount !== bHighCount) return bHighCount - aHighCount;
+
+      return CATEGORY_ORDER.indexOf(a.category) - CATEGORY_ORDER.indexOf(b.category);
+    });
 
   const riskClass = (risk: string) =>
     risk === "High" ? "claim-card--high" : risk === "Moderate" ? "claim-card--moderate" : "claim-card--low";
@@ -201,7 +281,7 @@ export default function UploadArea({ onResultsChange }: UploadAreaProps) {
     risk === "High" ? "confidence-bar-fill--high" : risk === "Moderate" ? "confidence-bar-fill--moderate" : "confidence-bar-fill--low";
 
   return (
-    <div className="upload-area w-full max-w-2xl mx-auto text-left">
+    <div className="upload-area w-full text-left">
       {/* Hidden native file input */}
       <input
         ref={fileInputRef}
@@ -445,162 +525,126 @@ export default function UploadArea({ onResultsChange }: UploadAreaProps) {
             </div>
           </div>
 
-          {/* Filter Pills */}
+          {/* Existing risk filters and requested topic navigation */}
           {analysisResult.total_sentences > 0 && (
-          <div className="risk-filter flex items-center gap-2 overflow-x-auto pb-1 text-xs">
-            <span className="text-[#6F7970] font-medium mr-1">Filter:</span>
-            <button
-              type="button"
-              onClick={() => setRiskFilter("ALL")}
-              className={`risk-filter-button px-3 py-1.5 rounded-lg font-medium transition-colors cursor-pointer ${
-                riskFilter === "ALL"
-                  ? "bg-[#202922] text-white risk-filter-active"
-                  : "bg-white border border-[#DCE4D9] text-[#6F7970] hover:text-[#202922]"
-              }`}
-            >
-              All ({analysisResult.total_sentences})
-            </button>
-            <button
-              type="button"
-              onClick={() => setRiskFilter("High")}
-              className={`risk-filter-button px-3 py-1.5 rounded-lg font-medium transition-colors cursor-pointer ${
-                riskFilter === "High"
-                  ? "bg-[#9E3628] text-white risk-filter-active"
-                  : "bg-white border border-[#DCE4D9] text-[#6F7970] hover:text-[#9E3628]"
-              }`}
-            >
-              High Risk ({analysisResult.summary.high_risk})
-            </button>
-            <button
-              type="button"
-              onClick={() => setRiskFilter("Moderate")}
-              className={`risk-filter-button px-3 py-1.5 rounded-lg font-medium transition-colors cursor-pointer ${
-                riskFilter === "Moderate"
-                  ? "bg-[#975A16] text-white risk-filter-active"
-                  : "bg-white border border-[#DCE4D9] text-[#6F7970] hover:text-[#975A16]"
-              }`}
-            >
-              Moderate Risk ({analysisResult.summary.moderate_risk})
-            </button>
-            <button
-              type="button"
-              onClick={() => setRiskFilter("Low")}
-              className={`risk-filter-button px-3 py-1.5 rounded-lg font-medium transition-colors cursor-pointer ${
-                riskFilter === "Low"
-                  ? "bg-[#2D6A4F] text-white risk-filter-active"
-                  : "bg-white border border-[#DCE4D9] text-[#6F7970] hover:text-[#2D6A4F]"
-              }`}
-            >
-              Low Risk ({analysisResult.summary.low_risk})
-            </button>
-          </div>
+            <div className="results-controls">
+              <div>
+                <p className="filter-label">Risk level</p>
+                <div className="risk-filter" role="group" aria-label="Filter claims by risk level">
+                  <button type="button" aria-pressed={riskFilter === "ALL"} onClick={() => setRiskFilter("ALL")} className={`risk-filter-button ${riskFilter === "ALL" ? "bg-[#202922] text-white risk-filter-active" : "bg-white border border-[#DCE4D9] text-[#6F7970] hover:text-[#202922]"}`}>
+                    All ({analysisResult.total_sentences})
+                  </button>
+                  <button type="button" aria-pressed={riskFilter === "High"} onClick={() => setRiskFilter("High")} className={`risk-filter-button ${riskFilter === "High" ? "bg-[#9E3628] text-white risk-filter-active" : "bg-white border border-[#DCE4D9] text-[#6F7970] hover:text-[#9E3628]"}`}>
+                    High risk ({analysisResult.summary.high_risk})
+                  </button>
+                  <button type="button" aria-pressed={riskFilter === "Moderate"} onClick={() => setRiskFilter("Moderate")} className={`risk-filter-button ${riskFilter === "Moderate" ? "bg-[#975A16] text-white risk-filter-active" : "bg-white border border-[#DCE4D9] text-[#6F7970] hover:text-[#975A16]"}`}>
+                    Moderate ({analysisResult.summary.moderate_risk})
+                  </button>
+                  <button type="button" aria-pressed={riskFilter === "Low"} onClick={() => setRiskFilter("Low")} className={`risk-filter-button ${riskFilter === "Low" ? "bg-[#2D6A4F] text-white risk-filter-active" : "bg-white border border-[#DCE4D9] text-[#6F7970] hover:text-[#2D6A4F]"}`}>
+                    Low risk ({analysisResult.summary.low_risk})
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <p className="filter-label">Browse by topic</p>
+                <div className="category-filter" role="group" aria-label="Filter claims by topic">
+                  <button type="button" aria-pressed={categoryFilter === "ALL"} onClick={() => setCategoryFilter("ALL")} className="category-filter-button">
+                    All topics <span className="category-filter-count">{analysisResult.total_sentences}</span>
+                  </button>
+                  {availableCategories.map((category) => {
+                    const count = categorizedSentences.filter((item) => item.category === category).length;
+                    return (
+                      <button
+                        key={category}
+                        type="button"
+                        aria-pressed={categoryFilter === category}
+                        onClick={() => setCategoryFilter(category)}
+                        className="category-filter-button"
+                      >
+                        {category} <span className="category-filter-count">{count}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="category-note">Topics are grouped from claim wording; within each group, highest-risk claims appear first.</p>
+              </div>
+            </div>
           )}
 
-          {/* Sentence Claims List */}
-          <div className="space-y-4">
-            {analysisResult.total_sentences === 0 ? (
-              <div className="rounded-xl bg-white border border-[#DCE4D9] p-8 text-center text-[#6F7970] text-sm leading-relaxed">
-                {analysisResult.pipeline_info.document_warning ??
-                  "No investor-facing claims were detected. Upload a startup pitch deck with product, market, traction, customer, or financial assertions."}
-              </div>
-            ) : filteredSentences.length === 0 ? (
-              <div className="rounded-xl bg-white border border-[#DCE4D9] p-8 text-center text-[#6F7970] text-sm">
-                No claims match the selected filter.
-              </div>
-            ) : (
-              filteredSentences.map((item, idx) => (
-                <div
-                  key={item.id}
-                  className={`claim-card ${riskClass(item.risk)} rounded-xl bg-white border border-[#DCE4D9] p-5 sm:p-6 text-left transition-all hover:border-[#BFCDBE]`}
-                  style={{ animationDelay: `${Math.min(idx * 60, 600)}ms` }}
-                >
-                  {/* Claim Header */}
-                  <div className="flex items-center justify-between gap-3 mb-2">
-                    <span className="text-xs font-medium text-[#6F7970]">
-                      Claim #{item.id}
-                    </span>
-                    <div className="flex items-center gap-2">
-                      <span className="text-[11px] text-[#6F7970]">
-                        {Math.round(item.score * 100)}% relative support
-                      </span>
-                      {item.risk === "High" && (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-[#FAF0EE] text-[#9E3628] border border-[#F2CDC7]">
-                          Risk: High
-                        </span>
-                      )}
-                      {item.risk === "Moderate" && (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-[#FFF9EB] text-[#975A16] border border-[#FCE3AC]">
-                          Risk: Moderate
-                        </span>
-                      )}
-                      {item.risk === "Low" && (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-[#EAF0E8] text-[#2D6A4F] border border-[#D2E0D0]">
-                          Risk: Low
-                        </span>
-                      )}
+          {/* Claim and counter-question are separate cards in a paired row. */}
+          {analysisResult.total_sentences === 0 ? (
+            <div className="claim-empty-state">
+              {analysisResult.pipeline_info.document_warning ??
+                "No investor-facing claims were detected. Upload a startup pitch deck with product, market, traction, customer, or financial assertions."}
+            </div>
+          ) : categoryGroups.length === 0 ? (
+            <div className="claim-empty-state">No claims match the selected filters.</div>
+          ) : (
+            <div className="claim-groups">
+              {categoryGroups.map((group, groupIndex) => (
+                <section className="claim-group" key={group.category} aria-labelledby={`category-heading-${groupIndex}`}>
+                  <div className="claim-group-heading">
+                    <div>
+                      <p className="section-kicker">Topic {String(groupIndex + 1).padStart(2, "0")}</p>
+                      <h3 id={`category-heading-${groupIndex}`}>{group.category}</h3>
                     </div>
+                    <span className="claim-group-meta">{group.claims.length} {group.claims.length === 1 ? "claim" : "claims"}</span>
                   </div>
 
-                  {/* Sentence Text */}
-                  <p className="text-sm sm:text-base font-medium text-[#202922] leading-relaxed mb-3">
-                    &ldquo;{item.text}&rdquo;
-                  </p>
-
-                  {/* Confidence Progress Bar */}
-                  <div className="confidence-bar-track">
-                    <div
-                      className={`confidence-bar-fill ${riskBarClass(item.risk)}`}
-                      style={{ width: `${Math.round(item.score * 100)}%` }}
-                    />
-                  </div>
-
-                  {/* Gated Investor Counter-Question (Moderate & High only) */}
-                  <div className="pt-3.5 mt-3 border-t border-[#F0EFEB]">
-                    {item.question ? (
-                      <div>
-                        <div className="flex items-center gap-1.5 mb-1 text-xs font-medium text-[#6F7970]">
-                          <svg
-                            className="w-3.5 h-3.5 text-[#315B41]"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            strokeWidth={2}
-                            stroke="currentColor"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 5.25h.008v.008H12v-.008Z"
-                            />
-                          </svg>
-                          Investor Counter-Question
+                  <div className="claim-pairs">
+                    {group.claims.map((item, idx) => (
+                      <article
+                        key={item.id}
+                        className={`claim-pair ${riskClass(item.risk)}`}
+                        style={{ animationDelay: `${Math.min(idx * 35, 350)}ms` }}
+                      >
+                        <div className="claim-pair-meta">
+                          <div className="claim-identifiers">
+                            <span className="claim-number">Claim #{item.id}</span>
+                            <span aria-hidden="true">/</span>
+                            <span className="claim-category-tag">{item.category}</span>
+                          </div>
+                          <div className="claim-score-risk">
+                            <span className="claim-support">{Math.round(item.score * 100)}% relative support</span>
+                            {item.risk === "High" && (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-[#FAF0EE] text-[#9E3628] border border-[#F2CDC7]">High risk</span>
+                            )}
+                            {item.risk === "Moderate" && (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-[#FFF9EB] text-[#975A16] border border-[#FCE3AC]">Moderate risk</span>
+                            )}
+                            {item.risk === "Low" && (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-[#EAF0E8] text-[#2D6A4F] border border-[#D2E0D0]">Low risk</span>
+                            )}
+                          </div>
                         </div>
-                        <p className="text-xs sm:text-sm text-[#202922] font-normal leading-relaxed italic">
-                          &ldquo;{item.question}&rdquo;
-                        </p>
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-1.5 text-xs text-[#2D6A4F] font-normal">
-                        <svg
-                          className="w-3.5 h-3.5"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          strokeWidth={2}
-                          stroke="currentColor"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            d="m4.5 12.75 6 6 9-13.5"
-                          />
-                        </svg>
-                        Grounded claim · No counter-question required
-                      </div>
-                    )}
+
+                        <div className="claim-pair-columns">
+                          <section className="claim-side-card claim-side-card--claim">
+                            <p className="claim-panel-label">Detected claim</p>
+                            <p className="claim-text">&ldquo;{item.text}&rdquo;</p>
+                            <div className="confidence-bar-track" aria-label={`${Math.round(item.score * 100)} percent relative support`}>
+                              <div className={`confidence-bar-fill ${riskBarClass(item.risk)}`} style={{ width: `${Math.max(0, Math.min(100, Math.round(item.score * 100)))}%` }} />
+                            </div>
+                          </section>
+
+                          <section className="claim-side-card claim-side-card--question">
+                            <p className="claim-panel-label">Investor counter-question</p>
+                            {item.question ? (
+                              <p className="question-text">&ldquo;{item.question}&rdquo;</p>
+                            ) : (
+                              <p className="question-text question-empty">No counter-question required for this claim, which is currently classified as low risk.</p>
+                            )}
+                          </section>
+                        </div>
+                      </article>
+                    ))}
                   </div>
-                </div>
-              ))
-            )}
-          </div>
+                </section>
+              ))}
+            </div>
+          )}
+
         </div>
       )}
 
