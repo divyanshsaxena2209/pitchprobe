@@ -26,7 +26,7 @@ export default function ProductExample() {
               Detected Claim
             </span>
             {/* Risk Badge */}
-            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-[#FAF0EE] text-[#9E3628] border border-[#F2CDC7]">
+            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-[#F8F3E9] text-[#9E3628] border border-[#E4D8C6]">
               Risk: High
             </span>
           </div>
