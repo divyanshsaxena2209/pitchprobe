@@ -496,7 +496,7 @@ export default function UploadArea({ onResultsChange }: UploadAreaProps) {
 
             {/* Metric Counters */}
             <div className="grid grid-cols-3 gap-3 pt-5 text-center">
-              <div className="metric-card rounded-xl p-3 bg-[#FAF0EE] border border-[#F2CDC7]">
+              <div className="metric-card rounded-xl p-3 bg-[#F8F3E9] border border-[#E4D8C6]">
                 <div className="text-2xl font-bold text-[#9E3628]">
                   {analysisResult.summary.high_risk}
                 </div>
@@ -505,7 +505,7 @@ export default function UploadArea({ onResultsChange }: UploadAreaProps) {
                 </div>
               </div>
 
-              <div className="metric-card rounded-xl p-3 bg-[#FFF9EB] border border-[#FCE3AC]">
+              <div className="metric-card rounded-xl p-3 bg-[#F8F3E9] border border-[#E4D8C6]">
                 <div className="text-2xl font-bold text-[#975A16]">
                   {analysisResult.summary.moderate_risk}
                 </div>
@@ -608,10 +608,10 @@ export default function UploadArea({ onResultsChange }: UploadAreaProps) {
                           <div className="claim-score-risk">
                             
                             {item.risk === "High" && (
-                              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-[#FAF0EE] text-[#9E3628] border border-[#F2CDC7]">High risk</span>
+                              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-[#F8F3E9] text-[#9E3628] border border-[#E4D8C6]">High risk</span>
                             )}
                             {item.risk === "Moderate" && (
-                              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-[#FFF9EB] text-[#975A16] border border-[#FCE3AC]">Moderate risk</span>
+                              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-[#F8F3E9] text-[#975A16] border border-[#E4D8C6]">Moderate risk</span>
                             )}
                             {item.risk === "Low" && (
                               <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-[#EFE6D8] text-[#2D6A4F] border border-[#DED3C0]">Low risk</span>
@@ -657,7 +657,7 @@ export default function UploadArea({ onResultsChange }: UploadAreaProps) {
       {errorMessage && (
         <div
           role="alert"
-          className="error-panel mt-4 p-3.5 rounded-xl bg-[#FDF4F3] border border-[#F2C5C0] flex items-start gap-2.5 text-left"
+          className="error-panel mt-4 p-3.5 rounded-xl bg-[#F8F3E9] border border-[#D9C6A9] flex items-start gap-2.5 text-left"
         >
           <svg
             className="w-5 h-5 text-[#B94A38] shrink-0 mt-0.5"
