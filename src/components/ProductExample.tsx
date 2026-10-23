@@ -8,21 +8,21 @@ export default function ProductExample() {
       <div className="preview-heading">
         <span
           id="example-output-heading"
-          className="text-[11px] font-semibold tracking-wider text-[#6F7970] uppercase"
+          className="text-[11px] font-semibold tracking-wider text-[#777064] uppercase"
         >
           WHAT YOU&apos;LL GET
         </span>
-        <span className="text-xs text-[#6F7970] bg-[#F3F6F1] border border-[#DCE4D9] px-2 py-0.5 rounded">
+        <span className="text-xs text-[#777064] bg-[#F4EEE3] border border-[#E4D8C6] px-2 py-0.5 rounded">
           Sample Output Preview
         </span>
       </div>
 
       {/* Compact Example Card */}
-      <div className="preview-card rounded-xl bg-white border border-[#DCE4D9] p-5 sm:p-6 text-left">
+      <div className="preview-card rounded-xl bg-white border border-[#E4D8C6] p-5 sm:p-6 text-left">
         {/* Claim Block */}
         <div className="mb-4">
           <div className="flex items-center justify-between gap-3 mb-1.5">
-            <span className="text-xs font-medium text-[#6F7970]">
+            <span className="text-xs font-medium text-[#777064]">
               Detected Claim
             </span>
             {/* Risk Badge */}
@@ -30,22 +30,25 @@ export default function ProductExample() {
               Risk: High
             </span>
           </div>
-          <p className="text-sm sm:text-base font-medium text-[#202922] leading-relaxed mb-3">
+          <p className="text-sm sm:text-base font-medium text-[#29251E] leading-relaxed mb-3">
             &ldquo;Our platform will capture a huge share of the global market.&rdquo;
           </p>
 
           {/* Static confidence bar for the preview */}
-          <div className="confidence-bar-track">
-            <div
-              className="confidence-bar-fill confidence-bar-fill--high"
-              style={{ width: "82%" }}
-            />
+          <div className="confidence-timeline">
+            <span className="confidence-bar-value" style={{ left: "82%" }}>82% support</span>
+            <div className="confidence-bar-track" role="meter" aria-valuemin={0} aria-valuemax={100} aria-valuenow={82} aria-label="Sample relative model support">
+              <div
+                className="confidence-bar-fill confidence-bar-fill--high"
+                style={{ width: "82%" }}
+              />
+            </div>
           </div>
         </div>
 
         {/* Counter Question Block */}
-        <div className="pt-3.5 border-t border-[#F0EFEB]">
-          <div className="flex items-center gap-1.5 mb-1 text-xs font-medium text-[#6F7970]">
+        <div className="pt-3.5 border-t border-[#EEE5D8]">
+          <div className="flex items-center gap-1.5 mb-1 text-xs font-medium text-[#777064]">
             <svg
               className="w-3.5 h-3.5 text-[#315B41]"
               fill="none"
@@ -61,7 +64,7 @@ export default function ProductExample() {
             </svg>
             Investor Counter-Question
           </div>
-          <p className="text-xs sm:text-sm text-[#383935] leading-relaxed italic">
+          <p className="text-xs sm:text-sm text-[#4C453A] leading-relaxed italic">
             &ldquo;What evidence supports your expected market share, and how did you calculate it?&rdquo;
           </p>
         </div>
