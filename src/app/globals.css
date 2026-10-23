@@ -334,6 +334,32 @@ button:active:not(:disabled) { transform: translateY(1px); }
   line-height: 1.7;
 }
 .error-panel { border-radius: 8px; }
+
+.landing-shell--results { max-width: 1160px; }
+.hero-section--results {
+  margin-bottom: 26px;
+  text-align: left;
+}
+.hero-section--results .hero-copy { max-width: none; margin: 0; }
+.hero-section--results .hero-kicker { margin-bottom: 12px; }
+.hero-section--results .hero-title {
+  max-width: 900px;
+  margin: 0;
+  font-size: clamp(32px, 4vw, 46px);
+  letter-spacing: -.05em;
+}
+.hero-section--results .hero-description {
+  max-width: 760px;
+  margin: 13px 0 0;
+  font-size: 14px;
+}
+.landing-shell--results .uploader-section {
+  max-width: none;
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
+}
+
 @media (max-width: 760px) {
   .site-header-inner { height: 62px; }
   .main-stage { padding: 45px 18px 58px; }
