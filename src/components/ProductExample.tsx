@@ -2,10 +2,10 @@ export default function ProductExample() {
   return (
     <section
       aria-labelledby="example-output-heading"
-      className="sample-preview w-full max-w-xl mx-auto mt-14 sm:mt-16 pt-10 border-t border-[#DCE4D9]"
+      className="sample-preview"
     >
       {/* Section Label */}
-      <div className="preview-heading flex items-center justify-between mb-4">
+      <div className="preview-heading">
         <span
           id="example-output-heading"
           className="text-[11px] font-semibold tracking-wider text-[#6F7970] uppercase"
