@@ -18,7 +18,7 @@ export default function ProductExample() {
       </div>
 
       {/* Compact Example Card */}
-      <div className="preview-card rounded-xl bg-white border border-[#DCE4D9] p-5 sm:p-6 text-left shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
+      <div className="preview-card rounded-xl bg-white border border-[#DCE4D9] p-5 sm:p-6 text-left">
         {/* Claim Block */}
         <div className="mb-4">
           <div className="flex items-center justify-between gap-3 mb-1.5">
@@ -30,17 +30,38 @@ export default function ProductExample() {
               Risk: High
             </span>
           </div>
-          <p className="text-sm sm:text-base font-medium text-[#202922] leading-relaxed">
+          <p className="text-sm sm:text-base font-medium text-[#202922] leading-relaxed mb-3">
             &ldquo;Our platform will capture a huge share of the global market.&rdquo;
           </p>
+
+          {/* Static confidence bar for the preview */}
+          <div className="confidence-bar-track">
+            <div
+              className="confidence-bar-fill confidence-bar-fill--high"
+              style={{ width: "82%" }}
+            />
+          </div>
         </div>
 
         {/* Counter Question Block */}
         <div className="pt-3.5 border-t border-[#F0EFEB]">
-          <span className="text-xs font-medium text-[#6F7970] block mb-1">
+          <div className="flex items-center gap-1.5 mb-1 text-xs font-medium text-[#6F7970]">
+            <svg
+              className="w-3.5 h-3.5 text-[#315B41]"
+              fill="none"
+              viewBox="0 0 24 24"
+              strokeWidth={2}
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 5.25h.008v.008H12v-.008Z"
+              />
+            </svg>
             Investor Counter-Question
-          </span>
-          <p className="text-xs sm:text-sm text-[#383935] leading-relaxed">
+          </div>
+          <p className="text-xs sm:text-sm text-[#383935] leading-relaxed italic">
             &ldquo;What evidence supports your expected market share, and how did you calculate it?&rdquo;
           </p>
         </div>

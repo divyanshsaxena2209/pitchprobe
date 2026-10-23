@@ -194,6 +194,12 @@ export default function UploadArea({ onResultsChange }: UploadAreaProps) {
         })
     : [];
 
+  const riskClass = (risk: string) =>
+    risk === "High" ? "claim-card--high" : risk === "Moderate" ? "claim-card--moderate" : "claim-card--low";
+
+  const riskBarClass = (risk: string) =>
+    risk === "High" ? "confidence-bar-fill--high" : risk === "Moderate" ? "confidence-bar-fill--moderate" : "confidence-bar-fill--low";
+
   return (
     <div className="upload-area w-full max-w-2xl mx-auto text-left">
       {/* Hidden native file input */}
@@ -219,14 +225,14 @@ export default function UploadArea({ onResultsChange }: UploadAreaProps) {
               ? "border-[#315B41] bg-[#EAF0E8] ring-2 ring-[#315B41]/20"
               : errorMessage
               ? "border-[#E3B5AF] bg-white"
-              : "border-[#DCE4D9] shadow-[0_1px_3px_rgba(0,0,0,0.03)] hover:border-[#BFCDBE]"
+              : "border-[#DCE4D9] hover:border-[#BFCDBE]"
           }`}
         >
           {!file ? (
             /* Initial State */
-            <div className="flex flex-col items-center">
+            <div className="flex flex-col items-center relative z-1">
               <div
-                className={`w-14 h-14 rounded-full flex items-center justify-center mb-4 transition-colors ${
+                className={`upload-icon-breathe w-16 h-16 rounded-full flex items-center justify-center mb-5 transition-colors ${
                   isDragging
                     ? "bg-[#315B41]/10 text-[#315B41]"
                     : "bg-[#F3F6F1] text-[#6F7970] border border-[#DCE4D9]"
@@ -234,7 +240,7 @@ export default function UploadArea({ onResultsChange }: UploadAreaProps) {
                 aria-hidden="true"
               >
                 <svg
-                  className="w-6 h-6"
+                  className="w-7 h-7"
                   fill="none"
                   viewBox="0 0 24 24"
                   strokeWidth={1.75}
@@ -248,10 +254,10 @@ export default function UploadArea({ onResultsChange }: UploadAreaProps) {
                 </svg>
               </div>
 
-              <h2 className="text-lg font-semibold text-[#202922] mb-1 tracking-tight">
+              <h2 className="text-lg font-semibold text-[#202922] mb-1.5 tracking-tight">
                 {isDragging ? "Drop your PDF file here" : "Upload your pitch deck"}
               </h2>
-              <p className="text-sm text-[#6F7970] mb-6">
+              <p className="text-sm text-[#6F7970] mb-6 max-w-xs mx-auto leading-relaxed">
                 Choose a PDF up to 20 MB from your computer.
               </p>
 
@@ -259,7 +265,7 @@ export default function UploadArea({ onResultsChange }: UploadAreaProps) {
                 type="button"
                 id="choose-pdf-button"
                 onClick={handleChooseClick}
-                className="primary-action inline-flex items-center justify-center px-5 py-2.5 rounded-lg bg-[#315B41] hover:bg-[#244832] text-white text-sm font-medium transition-colors shadow-sm cursor-pointer focus-visible:ring-2 focus-visible:ring-[#315B41] focus-visible:ring-offset-2"
+                className="primary-action inline-flex items-center justify-center px-6 py-2.5 rounded-lg bg-[#315B41] hover:bg-[#244832] text-white text-sm font-medium transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-[#315B41] focus-visible:ring-offset-2"
               >
                 <svg
                   className="w-4 h-4 mr-2"
@@ -284,8 +290,8 @@ export default function UploadArea({ onResultsChange }: UploadAreaProps) {
             </div>
           ) : (
             /* Selected File State */
-            <div className="flex flex-col items-center">
-              <div className="w-14 h-14 rounded-xl bg-[#F3F6F1] border border-[#DCE4D9] text-[#315B41] flex items-center justify-center mb-4">
+            <div className="flex flex-col items-center relative z-1">
+              <div className="w-16 h-16 rounded-xl bg-[#F3F6F1] border border-[#DCE4D9] text-[#315B41] flex items-center justify-center mb-4 transition-transform hover:scale-105">
                 <svg
                   className="w-7 h-7"
                   fill="none"
@@ -314,8 +320,8 @@ export default function UploadArea({ onResultsChange }: UploadAreaProps) {
                 </p>
               </div>
 
-              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#F3F6F1] border border-[#DCE4D9] text-xs font-medium text-[#315B41] my-3">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#315B41]" />
+              <div className="file-ready-badge inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#F3F6F1] border border-[#DCE4D9] text-xs font-medium text-[#315B41] my-3">
+                <span className="file-ready-dot w-1.5 h-1.5 rounded-full bg-[#315B41]" />
                 File ready for analysis
               </div>
 
@@ -371,7 +377,7 @@ export default function UploadArea({ onResultsChange }: UploadAreaProps) {
         /* Results View */
         <div className="w-full space-y-6">
           {/* Top Summary Bar */}
-          <div className="results-overview rounded-2xl bg-white border border-[#DCE4D9] p-6 shadow-sm">
+          <div className="results-overview rounded-2xl bg-white border border-[#DCE4D9] p-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-[#DCE4D9]">
               <div>
                 <span className="text-[11px] font-semibold tracking-wider text-[#6F7970] uppercase">
@@ -389,7 +395,7 @@ export default function UploadArea({ onResultsChange }: UploadAreaProps) {
                 type="button"
                 id="reset-analysis-button"
                 onClick={handleRemove}
-                className="self-start sm:self-auto inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-[#DCE4D9] bg-white hover:bg-[#F3F6F1] text-xs font-medium text-[#202922] transition-colors cursor-pointer"
+                className="self-start sm:self-auto inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-[#DCE4D9] bg-white hover:bg-[#F3F6F1] text-xs font-medium text-[#202922] transition-colors cursor-pointer hover:shadow-sm"
               >
                 <svg
                   className="w-3.5 h-3.5 text-[#6F7970]"
@@ -448,7 +454,7 @@ export default function UploadArea({ onResultsChange }: UploadAreaProps) {
               onClick={() => setRiskFilter("ALL")}
               className={`risk-filter-button px-3 py-1.5 rounded-lg font-medium transition-colors cursor-pointer ${
                 riskFilter === "ALL"
-                  ? "bg-[#202922] text-white"
+                  ? "bg-[#202922] text-white risk-filter-active"
                   : "bg-white border border-[#DCE4D9] text-[#6F7970] hover:text-[#202922]"
               }`}
             >
@@ -459,7 +465,7 @@ export default function UploadArea({ onResultsChange }: UploadAreaProps) {
               onClick={() => setRiskFilter("High")}
               className={`risk-filter-button px-3 py-1.5 rounded-lg font-medium transition-colors cursor-pointer ${
                 riskFilter === "High"
-                  ? "bg-[#9E3628] text-white"
+                  ? "bg-[#9E3628] text-white risk-filter-active"
                   : "bg-white border border-[#DCE4D9] text-[#6F7970] hover:text-[#9E3628]"
               }`}
             >
@@ -470,7 +476,7 @@ export default function UploadArea({ onResultsChange }: UploadAreaProps) {
               onClick={() => setRiskFilter("Moderate")}
               className={`risk-filter-button px-3 py-1.5 rounded-lg font-medium transition-colors cursor-pointer ${
                 riskFilter === "Moderate"
-                  ? "bg-[#975A16] text-white"
+                  ? "bg-[#975A16] text-white risk-filter-active"
                   : "bg-white border border-[#DCE4D9] text-[#6F7970] hover:text-[#975A16]"
               }`}
             >
@@ -481,7 +487,7 @@ export default function UploadArea({ onResultsChange }: UploadAreaProps) {
               onClick={() => setRiskFilter("Low")}
               className={`risk-filter-button px-3 py-1.5 rounded-lg font-medium transition-colors cursor-pointer ${
                 riskFilter === "Low"
-                  ? "bg-[#2D6A4F] text-white"
+                  ? "bg-[#2D6A4F] text-white risk-filter-active"
                   : "bg-white border border-[#DCE4D9] text-[#6F7970] hover:text-[#2D6A4F]"
               }`}
             >
@@ -502,10 +508,11 @@ export default function UploadArea({ onResultsChange }: UploadAreaProps) {
                 No claims match the selected filter.
               </div>
             ) : (
-              filteredSentences.map((item) => (
+              filteredSentences.map((item, idx) => (
                 <div
                   key={item.id}
-                  className="claim-card rounded-xl bg-white border border-[#DCE4D9] p-5 sm:p-6 text-left shadow-[0_1px_2px_rgba(0,0,0,0.02)] transition-all hover:border-[#BFCDBE]"
+                  className={`claim-card ${riskClass(item.risk)} rounded-xl bg-white border border-[#DCE4D9] p-5 sm:p-6 text-left transition-all hover:border-[#BFCDBE]`}
+                  style={{ animationDelay: `${Math.min(idx * 60, 600)}ms` }}
                 >
                   {/* Claim Header */}
                   <div className="flex items-center justify-between gap-3 mb-2">
@@ -535,12 +542,20 @@ export default function UploadArea({ onResultsChange }: UploadAreaProps) {
                   </div>
 
                   {/* Sentence Text */}
-                  <p className="text-sm sm:text-base font-medium text-[#202922] leading-relaxed mb-4">
+                  <p className="text-sm sm:text-base font-medium text-[#202922] leading-relaxed mb-3">
                     &ldquo;{item.text}&rdquo;
                   </p>
 
+                  {/* Confidence Progress Bar */}
+                  <div className="confidence-bar-track">
+                    <div
+                      className={`confidence-bar-fill ${riskBarClass(item.risk)}`}
+                      style={{ width: `${Math.round(item.score * 100)}%` }}
+                    />
+                  </div>
+
                   {/* Gated Investor Counter-Question (Moderate & High only) */}
-                  <div className="pt-3.5 border-t border-[#F0EFEB]">
+                  <div className="pt-3.5 mt-3 border-t border-[#F0EFEB]">
                     {item.question ? (
                       <div>
                         <div className="flex items-center gap-1.5 mb-1 text-xs font-medium text-[#6F7970]">
