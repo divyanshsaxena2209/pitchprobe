@@ -1,66 +1,110 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import UploadArea from "@/components/UploadArea";
 import ProductExample from "@/components/ProductExample";
 
 export default function Home() {
   const [hasResults, setHasResults] = useState(false);
+  const [showUploader, setShowUploader] = useState(false);
+  const uploadSectionRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    if (showUploader) {
+      uploadSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [showUploader]);
+
+  const handleStartAnalysis = () => {
+    if (showUploader) {
+      uploadSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      return;
+    }
+    setShowUploader(true);
+  };
 
   return (
-    <div className="app-shell min-h-screen flex flex-col justify-between bg-[#F3F6F1] text-[#202922]">
-      {/* Floating decorative background orbs */}
-      <div className="bg-orb bg-orb--1" aria-hidden="true" />
-      <div className="bg-orb bg-orb--2" aria-hidden="true" />
-      <div className="bg-orb bg-orb--3" aria-hidden="true" />
-
-      {/* A. Glassmorphic Top Navigation */}
-      <header className="site-header w-full border-b border-[#DCE4D9]">
-        <div className="site-header-inner mx-auto w-full px-4 sm:px-6 flex items-center justify-between">
-          <div className="brand-lockup flex items-center">
-            <span className="brand-name text-base font-semibold tracking-tight text-[#202922]">
-              PitchProbe
-            </span>
-            <span className="product-tag text-[11px] font-medium text-[#6F7970] tracking-wide border border-[#DCE4D9] bg-white px-1.5 py-0.5 rounded">
-              NLP
-            </span>
+    <div className="app-shell">
+      <header className="site-header">
+        <div className="site-header-inner">
+          <div className="brand-lockup" aria-label="PitchProbe">
+            <svg className="brand-logo" viewBox="0 0 40 40" role="img" aria-label="PitchProbe logo">
+              <rect x="1" y="1" width="38" height="38" rx="10" fill="#315B41" />
+              <path d="M10 26.5 16.4 19l4.4 4.2L30 12.5" fill="none" stroke="#FFFFFF" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round" />
+              <path d="M23.8 12.5H30v6.2" fill="none" stroke="#FFFFFF" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            <span className="brand-name">PitchProbe</span>
           </div>
-          <span className="header-descriptor text-xs sm:text-sm text-[#6F7970] font-normal">
-            Pitch deck analysis
-          </span>
         </div>
       </header>
 
-      {/* Main Content Area */}
-      <main className="main-stage flex-1 flex flex-col justify-center items-center px-4 sm:px-6">
-        <div className={`home-content w-full ${hasResults ? "home-content-results" : ""}`}>
-          {/* B. Main Heading & Supporting Text */}
-          <div className="home-intro">
-            <p className="hero-kicker">Pitch deck due diligence</p>
-            <h1 className="hero-title text-2xl sm:text-4xl font-semibold tracking-tight text-[#202922] mb-3 leading-tight sm:leading-tight">
-              Know what an investor might question.
-            </h1>
-            <p className="hero-description text-sm sm:text-base text-[#6F7970] max-w-lg mx-auto leading-relaxed">
-              Upload your startup pitch deck to spot vague or exaggerated claims
-              and see the questions an investor might ask.
-            </p>
-          </div>
+      <main className="main-stage">
+        <div className={`landing-shell ${hasResults ? "landing-shell--results" : ""}`}>
+          <section className={`hero-section ${hasResults ? "hero-section--results" : ""}`} aria-labelledby="hero-title">
+            <div className="hero-copy">
+              <p className="hero-kicker">Investor-readiness review</p>
+              <h1 className="hero-title" id="hero-title">Know what an investor might question.</h1>
+              <p className="hero-description">
+                A sharper read on your pitch deck. Surface vague claims, see where the risk sits,
+                and get the questions an investor is likely to ask.
+              </p>
+            </div>
 
-          {/* C. Pitch Deck Upload Area */}
-          <UploadArea onResultsChange={setHasResults} />
+            {!hasResults && (
+              <>
+                <div className="process-strip" aria-label="How PitchProbe works">
+                  <div className="process-step">
+                    <span className="process-index">01</span>
+                    <div>
+                      <p className="process-title">Scan the claims</p>
+                      <p className="process-copy">Pull out the statements that need a closer look.</p>
+                    </div>
+                  </div>
+                  <div className="process-step">
+                    <span className="process-index">02</span>
+                    <div>
+                      <p className="process-title">Rank by risk</p>
+                      <p className="process-copy">Separate high-risk claims from more grounded ones.</p>
+                    </div>
+                  </div>
+                  <div className="process-step">
+                    <span className="process-index">03</span>
+                    <div>
+                      <p className="process-title">Ask sharper questions</p>
+                      <p className="process-copy">Prepare for the evidence an investor may request.</p>
+                    </div>
+                  </div>
+                </div>
 
-          {/* D. Small Product Example (preview shown when idle, hidden when live results are rendered) */}
-          {!hasResults && <ProductExample />}
+                <div className="hero-action">
+                  <button type="button" className="landing-cta" onClick={handleStartAnalysis}>
+                    Analyse pitch deck
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                      <path d="M5 12h14m-6-6 6 6-6 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </button>
+                  <p className="hero-action-note">PDF only · Up to 20 MB · No extra setup</p>
+                </div>
+              </>
+            )}
+          </section>
+
+          {!showUploader && !hasResults && <ProductExample />}
+
+          {showUploader && (
+            <section className="uploader-section" ref={uploadSectionRef} aria-labelledby="upload-section-title">
+              {!hasResults && (
+                <div className="uploader-heading">
+                  <p className="section-kicker">Start here</p>
+                  <h2 id="upload-section-title">Upload your pitch deck</h2>
+                  <p>Choose a PDF to review its investor-facing claims and counter-questions.</p>
+                </div>
+              )}
+              <UploadArea onResultsChange={setHasResults} />
+            </section>
+          )}
         </div>
       </main>
-
-      {/* Premium Footer with gradient separator */}
-      <footer className="site-footer w-full py-5 px-4 sm:px-6 bg-[#F3F6F1]">
-        <div className="site-footer-inner max-w-4xl mx-auto w-full flex flex-col sm:flex-row items-center justify-between text-xs text-[#6F7970] gap-2">
-          <span>PitchProbe-NLP · First Version</span>
-          <span>PDF text analysis for startup pitch decks</span>
-        </div>
-      </footer>
     </div>
   );
 }
