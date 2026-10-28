@@ -255,7 +255,7 @@ REFERENCE_FILE_DENYLIST = {
         "PitchProbe only analyzes completed startup pitch decks. Please upload a pitch deck PDF."
     ),
     "cadfinalreport": (
-        "This file is a CAD/project report, not a startup pitch deck. "
+        "This file is a CAD final report/project report, not a startup pitch deck. "
         "PitchProbe only analyzes completed startup pitch decks. Please upload a pitch deck PDF."
     ),
     "asterionsecuritypolicy": (
@@ -335,7 +335,7 @@ EXACT_REFERENCE_FILE_WARNINGS = {
 def _normalized_reference_stem(filename: str) -> str:
     stem = filename.rsplit(".", 1)[0] if "." in filename else filename
     # Remove one or more trailing duplicate/date suffixes added to downloads.
-    stem = re.sub(r"(?:\\s*\\([^)]*\\))+$", "", stem).strip()
+    stem = re.sub(r"(?:\s*\([^)]*\))+$", "", stem).strip()
     return re.sub(r"[^a-z0-9]+", "", stem.lower())
 
 
