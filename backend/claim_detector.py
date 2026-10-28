@@ -198,9 +198,10 @@ def _document_type_warning(raw_text: str, compact: str) -> Optional[str]:
     pitch_signals = sum(
         marker in compact
         for marker in (
-            "tam", "sam", "som", "marketopportunity", "businessmodel",
-            "go to market".replace(" ", ""), "fundingask", "traction",
-            "customeracquisition", "unit economics".replace(" ", ""),
+            "totaladdressablemarket", "serviceableaddressablemarket",
+            "serviceableobtainablemarket", "marketopportunity", "businessmodel",
+            "gotomarket", "fundingask", "traction", "customeracquisition",
+            "uniteconomics",
         )
     )
     if resume_hits >= 4 and pitch_signals < 2:
