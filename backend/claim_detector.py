@@ -246,6 +246,48 @@ def _document_type_warning(raw_text: str, compact: str) -> Optional[str]:
     return None
 
 
+# Explicit denylist for the reference PDFs requested for local security testing.
+# Filename matching is an extra early block; content-based checks remain
+# necessary because filenames can be changed before upload.
+REFERENCE_FILE_DENYLIST = {
+    "da1pitchprobeassignment": (
+        "This file is an academic assignment, not a startup pitch deck. "
+        "PitchProbe only analyzes completed startup pitch decks. Please upload a pitch deck PDF."
+    ),
+    "cadfinalreport": (
+        "This file is a CAD/project report, not a startup pitch deck. "
+        "PitchProbe only analyzes completed startup pitch decks. Please upload a pitch deck PDF."
+    ),
+    "asterionsecuritypolicy": (
+        "This file is an Asterion security policy, not a startup pitch deck. "
+        "Policy documents are not supported. Please upload a completed startup pitch deck PDF."
+    ),
+    "bluepeaksecuritypolicy": (
+        "This file is a BluePeak security policy, not a startup pitch deck. "
+        "Policy documents are not supported. Please upload a completed startup pitch deck PDF."
+    ),
+    "nvcpitchdecktemplate": (
+        "This file is a pitch-deck template, not a completed startup pitch deck. "
+        "Fill in the template with your venture's actual information and upload the completed deck."
+    ),
+    "resume": (
+        "This file is a resume/CV, not a startup pitch deck. "
+        "PitchProbe only analyzes completed startup pitch decks. Please upload a pitch deck PDF."
+    ),
+}
+
+
+def document_warning_for_filename(filename: Optional[str]) -> Optional[str]:
+    """Reject known unsupported reference PDFs using normalized filenames."""
+    if not filename:
+        return None
+    normalized = re.sub(r"[^a-z0-9]+", "", filename.lower())
+    for identifier in sorted(REFERENCE_FILE_DENYLIST, key=len, reverse=True):
+        if identifier in normalized:
+            return REFERENCE_FILE_DENYLIST[identifier]
+    return None
+
+
 def document_warning_for_text(raw_text: Optional[str]) -> Optional[str]:
     """Detect unsupported document types and pitch-deck templates before claim scoring."""
     if not raw_text or not raw_text.strip():
