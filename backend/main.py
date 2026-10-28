@@ -14,6 +14,7 @@ from backend.schemas import (
     SentenceAnalysis,
 )
 from backend.segmenter import split_into_sentences
+from backend.claim_detector import document_warning_for_filename
 
 logging.basicConfig(
     level=logging.INFO,
@@ -76,6 +77,12 @@ async def analyze_pitch_deck(file: UploadFile = File(...)):
     logger.info("Analysis request started: filename=%r", filename)
 
     try:
+        # Explicit denylist for the exact reference test files supplied for validation.
+        # This runs before PDF extraction so these files never reach claim scoring.
+        filename_warning = document_warning_for_filename(filename)
+        if filename_warning:
+            raise HTTPException(status_code=422, detail=filename_warning)
+
         # 1. Validate & extract PDF text
         raw_text = await extract_pdf_text(file)
         logger.info(
