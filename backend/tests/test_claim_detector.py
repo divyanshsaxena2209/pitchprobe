@@ -353,3 +353,37 @@ def test_reference_pitch_deck_filenames_are_not_denylisted():
         "StrideForge_PitchDeck.pdf",
     ):
         assert document_warning_for_filename(filename) is None
+
+
+
+def test_all_uploaded_reference_files_are_hard_rejected_by_filename():
+    cases = {
+        "Pitch_Deck_NLP_Course_Paper_Expanded_8pg(1).pdf": "academic course paper",
+        "Pitch_Deck_NLP_Course_Paper_8pg(1).docx": "academic course paper",
+        "Asterion_Dynamics_Information_Security_and_Remote_Work_Policy(4).pdf": "policy",
+        "AI_Interview_Prep_Presentation.pptx": "project presentation",
+        "bluepeak_systems_test_company_policy(3).pdf": "policy",
+        "PitchProbe-NLP_IEEE_Paper(1).docx": "research paper",
+        "Northstar_Meridian_Employee_Policy_Handbook_Test_Document(2).pdf": "policy handbook",
+        "divyansh_saxena_resume (1)(5).pdf": "resume/CV",
+        "DA1_PitchProbe_NLP(2).pdf": "academic assignment",
+        "PitchProbe-NLP(1).pdf": "course-project paper",
+        "JSW_Internship_Report_24BCE1702_DIVYANSH_SAXENA(1).pdf": "internship report",
+        "PitchProbe-NLP(6).pptx": "course-project presentation",
+        "DA1_PitchProbe_NLP(9).docx": "academic assignment",
+        "divyansh_saxena_resume(20261028-101056).pdf": "resume/CV",
+        "JSW_Internship_Report_papa(1).pdf": "internship report",
+    }
+    for filename, expected in cases.items():
+        warning = document_warning_for_filename(filename)
+        assert warning is not None, filename
+        assert expected.lower() in warning.lower(), (filename, warning)
+
+
+def test_exact_reference_file_helper_preserves_real_pitch_deck_filenames():
+    for filename in (
+        "Nivaro_Footwear_Pitch_Deck.pdf",
+        "Sonora_Seed_Pitch_Deck.pdf",
+        "StrideForge_PitchDeck.pdf",
+    ):
+        assert document_warning_for_filename(filename) is None
