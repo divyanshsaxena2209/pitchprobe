@@ -3,7 +3,7 @@
 import { useState, useRef, ChangeEvent, DragEvent } from "react";
 
 function normalizedReferenceStem(filename: string): string {
-  const stem = filename.replace(/\\.[^.]+$/, "").replace(/(?:\\s*\\([^)]*\\))+$/, "").trim();
+  const stem = filename.replace(/\.[^.]+$/, "").replace(/(?:\s*\([^)]*\))+$/, "").trim();
   return stem.toLowerCase().replace(/[^a-z0-9]+/g, "");
 }
 
