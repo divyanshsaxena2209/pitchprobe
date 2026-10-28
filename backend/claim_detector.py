@@ -181,14 +181,82 @@ NON_CLAIM_PATTERNS = [
 ]
 
 
+def _document_type_warning(raw_text: str, compact: str) -> Optional[str]:
+    """Identify common non-pitch PDFs and return a user-facing explanation."""
+    lower = raw_text.lower()
+
+    # Resume/CV: require several structural signals, not just a mention of a
+    # founder's experience or team slide in a legitimate pitch deck.
+    resume_groups = [
+        any(term in lower for term in ("work experience", "professional experience", "employment history", "experience")),
+        any(term in lower for term in ("education", "academic qualifications", "degrees")),
+        any(term in lower for term in ("technical skills", "skills", "core competencies")),
+        any(term in lower for term in ("linkedin", "phone:", "email:", "contact")),
+        any(term in lower for term in ("projects", "certifications", "internship")),
+    ]
+    resume_hits = sum(resume_groups)
+    pitch_signals = sum(
+        marker in compact
+        for marker in (
+            "tam", "sam", "som", "marketopportunity", "businessmodel",
+            "go to market".replace(" ", ""), "fundingask", "traction",
+            "customeracquisition", "unit economics".replace(" ", ""),
+        )
+    )
+    if resume_hits >= 4 and pitch_signals < 2:
+        return (
+            "This file looks like a resume/CV, not a startup pitch deck. "
+            "PitchProbe reviews investor-facing claims in a venture pitch. "
+            "Upload a completed startup pitch deck PDF instead."
+        )
+
+    # Corporate policy / procedure documents.
+    policy_markers = (
+        "companypolicy", "policystatement", "scopeandpurpose",
+        "rolesandresponsibilities", "policyowner", "effective date".replace(" ", ""),
+        "revisionhistory", "confidentialitypolicy", "acceptableusepolicy",
+        "informationsecuritypolicy", "dataprotectionpolicy",
+        "incidentreportingprocedure", "policyandprocedure",
+    )
+    policy_hits = sum(marker in compact for marker in policy_markers)
+    if policy_hits >= 2:
+        return (
+            "This file looks like a company policy or procedure document, not a startup "
+            "pitch deck. PitchProbe cannot review policy documents. Upload a completed "
+            "startup pitch deck PDF containing your venture's product, market, traction, "
+            "business model, or financial claims."
+        )
+
+    # Academic / technical / internship reports. Require multiple structural
+    # signals so a startup deck mentioning research or a roadmap is not rejected.
+    report_markers = (
+        "abstract", "tableofcontents", "acknowledgement", "declaration",
+        "methodology", "literaturereview", "chapter1", "conclusion",
+        "appendix", "submittedinpartialfulfilment", "internshipreport",
+        "projectreport", "certificate",
+    )
+    report_hits = sum(marker in compact for marker in report_markers)
+    if report_hits >= 4 and pitch_signals < 2:
+        return (
+            "This file looks like an academic, project, or internship report, not a startup "
+            "pitch deck. PitchProbe is designed to assess investor-facing startup claims. "
+            "Upload a completed startup pitch deck PDF instead."
+        )
+    return None
+
+
 def document_warning_for_text(raw_text: Optional[str]) -> Optional[str]:
-    """Detect likely pitch-deck templates or coursework before claim scoring."""
+    """Detect unsupported document types and pitch-deck templates before claim scoring."""
     if not raw_text or not raw_text.strip():
         return None
 
     # Compact matching catches PDF extraction artifacts such as
     # "CourseCode", "SubmissionDeadline", and line-broken template instructions.
     compact = re.sub(r"[^a-z0-9]+", "", raw_text.lower())
+
+    specific_warning = _document_type_warning(raw_text, compact)
+    if specific_warning:
+        return specific_warning
 
     template_hits = sum(
         marker in compact for marker in PITCH_TEMPLATE_INSTRUCTION_MARKERS
