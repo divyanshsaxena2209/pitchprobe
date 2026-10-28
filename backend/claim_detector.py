@@ -12,10 +12,11 @@ import torch
 
 
 DOCUMENT_WARNING = (
-    "This PDF appears to be an academic assignment or research report rather "
-    "than a startup pitch deck. No investor-facing claims were scored. Upload "
-    "a startup pitch deck containing product, market, traction, customer, or "
-    "financial claims for a useful investor review."
+    "This PDF does not appear to be a startup or investor pitch deck. It may "
+    "be an assignment, report, resume, policy, or unrelated document. No "
+    "investor-facing claims were scored. Upload a pitch deck describing a "
+    "startup's problem, solution, market, product, traction, business model, "
+    "team, financials, or funding plan."
 )
 
 STRONG_ADMIN_MARKERS = [
@@ -144,13 +145,25 @@ NON_CLAIM_PATTERNS = [
 
 
 def document_warning_for_text(raw_text: Optional[str]) -> Optional[str]:
-    """Detect likely coursework/research documents before analyzing sentences."""
-    if not raw_text or not raw_text.strip():
+    """Require credible pitch-deck context before scoring any extracted claims.
+
+    This is a content-based gate, not a filename check. Clear academic, resume,
+    report, and policy signatures are rejected before any positive pitch terms
+    are considered, because those files can mention startups or pitch decks.
+    """
+    # Preserve direct sentence-level unit-test/API use where no document was
+    # supplied. The PDF endpoint passes an extracted string, including "" for
+    # an empty or textless PDF, which must be rejected.
+    if raw_text is None:
         return None
+    if not raw_text.strip():
+        return DOCUMENT_WARNING
+
+    normalized = re.sub(r"\s+", " ", raw_text.lower())
+    compact = re.sub(r"[^a-z0-9]+", "", normalized)
 
     # Compact matching catches PDF extraction artifacts such as
     # "CourseCode", "SubmissionDeadline", and "ContributionMatrix".
-    compact = re.sub(r"[^a-z0-9]+", "", raw_text.lower())
     strong_admin_hits = sum(marker in compact for marker in STRONG_ADMIN_MARKERS)
     admin_hits = sum(marker in compact for marker in ADMIN_COMPACT_MARKERS)
     research_hits = sum(marker in compact for marker in RESEARCH_COMPACT_MARKERS)
@@ -158,15 +171,132 @@ def document_warning_for_text(raw_text: Optional[str]) -> Optional[str]:
         marker in compact for marker in STRONG_BUSINESS_MARKERS
     )
 
-    # Multiple specific coursework fields are strong evidence that the file
-    # is not a pitch deck. Research-heavy files need a higher threshold, and
-    # clear business/traction metrics protect technical startup decks.
+    # Academic/assignment signals take precedence over a mention of "pitch
+    # deck" in the title or literature review.
     if strong_admin_hits >= 2 or (admin_hits >= 4 and research_hits >= 3):
         return DOCUMENT_WARNING
     if research_hits >= 6 and business_signal_hits < 2:
         return DOCUMENT_WARNING
-    return None
 
+    pitch_cue_patterns = [
+        r"\bpitch(?:\s+deck)?\b",
+        r"\binvestor\s+(?:pitch|presentation|deck)\b",
+        r"\bseed(?:[- ]stage)?\s+(?:round|investor|pitch|presentation)\b",
+        r"\bseries\s*[a-d]\b",
+        r"\bfundrais(?:e|ing)\b",
+        r"\binvestment opportunity\b",
+        r"\bventure competition\b",
+        r"\bthe ask\b",
+        r"\binvestor[- ]readiness\b",
+    ]
+    pitch_cue_hits = sum(
+        bool(re.search(pattern, normalized, re.IGNORECASE))
+        for pattern in pitch_cue_patterns
+    )
+
+    # A resume may contain commercial numbers and product claims, but its
+    # section layout is not a startup pitch.
+    resume_patterns = [
+        r"\bresume\b",
+        r"\bcurriculum vitae\b",
+        r"\beducation\b",
+        r"\btechnical skills\b",
+        r"\bwork experience\b",
+        r"\bexperience\b",
+        r"\bprojects\b",
+        r"\blinkedin\b",
+        r"\bgithub\b",
+        r"\bcgpa\b",
+        r"\b(?:cell|mobile|phone)\s*:",
+        r"\b(?:e-?mail)\s*:",
+    ]
+    resume_hits = sum(
+        bool(re.search(pattern, normalized, re.IGNORECASE))
+        for pattern in resume_patterns
+    )
+    if pitch_cue_hits == 0 and resume_hits >= 4:
+        return DOCUMENT_WARNING
+
+    # Workplace and information-security policies commonly mention people,
+    # access, systems, and compliance; those are not investor claims.
+    policy_patterns = [
+        r"\b(?:information security|workplace security|remote work policy)\b",
+        r"\bpolicy owner\b",
+        r"\bdocument id\b",
+        r"\bdata classification\b",
+        r"\bincident reporting\b",
+        r"\bretention and disposal\b",
+        r"\bidentity, access, and authentication\b",
+        r"\binformation handling policy\b",
+        r"\bsecurity & people operations\b",
+        r"\bacceptable use of ai\b",
+    ]
+    policy_hits = sum(
+        bool(re.search(pattern, normalized, re.IGNORECASE))
+        for pattern in policy_patterns
+    )
+    if pitch_cue_hits == 0 and policy_hits >= 2:
+        return DOCUMENT_WARNING
+
+    # Reports and course deliverables are detected independently of whether
+    # they contain incidental market, product, or funding terminology.
+    report_patterns = [
+        r"\bproject report\b",
+        r"\btechnical report\b",
+        r"\btable of contents\b",
+        r"\bchapter\s+1\b",
+        r"\babstract\b",
+        r"\bliterature review\b",
+        r"\backnowledg(?:e)?ment\b",
+        r"\bsubmitted by\b",
+        r"\bcourse code\b",
+        r"\bregister number\b",
+    ]
+    report_hits = sum(
+        bool(re.search(pattern, normalized, re.IGNORECASE))
+        for pattern in report_patterns
+    )
+    has_report_title = bool(
+        re.search(r"\b(?:project|technical|final)\s+report\b", normalized)
+    )
+    if pitch_cue_hits == 0 and (report_hits >= 4 or (has_report_title and report_hits >= 2)):
+        return DOCUMENT_WARNING
+
+    # A pitch signal alone is insufficient: for example, an unrelated article
+    # can mention fundraising. Require evidence of a recognisable venture deck
+    # structure as well. These markers cover both populated decks and a deck
+    # template such as the supplied NVC example.
+    pitch_section_patterns = [
+        r"\bproblem\b",
+        r"\bsolution\b",
+        r"\bproduct\b",
+        r"\btechnology\b",
+        r"\bmarket(?: opportunity| size| sizing)?\b",
+        r"\b(?:tam|sam|som)\b",
+        r"\btraction\b",
+        r"\bbusiness model\b",
+        r"\brevenue model\b",
+        r"\bgo[- ]to[- ]market\b",
+        r"\bcompetitive landscape\b",
+        r"\bcompetitive advantage\b",
+        r"\bfinancial plan\b",
+        r"\bunit economics\b",
+        r"\bteam\b",
+        r"\bfunding ask\b",
+        r"\bthe ask\b",
+        r"\buse of funds\b",
+        r"\broadmap\b",
+        r"\brisk(?:s| & mitigations)?\b",
+    ]
+    pitch_section_hits = sum(
+        bool(re.search(pattern, normalized, re.IGNORECASE))
+        for pattern in pitch_section_patterns
+    )
+
+    if pitch_cue_hits == 0 or pitch_section_hits < 3:
+        return DOCUMENT_WARNING
+
+    return None
 
 def normalize_claim_text(text: str) -> str:
     """Repair recoverable word boundaries and glyph artifacts from PDF extraction."""
