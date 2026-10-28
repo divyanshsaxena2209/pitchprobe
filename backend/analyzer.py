@@ -372,6 +372,44 @@ def _targeted_investor_question(sentence: str, risk: str) -> str:
     """Generate one evidence-seeking VC question based on the claim's main topic."""
     text = sentence.lower()
 
+    # Strong domain-specific outcomes must not fall through to a generic
+    # "what evidence supports this?" template.
+    if re.search(
+        r"\b(?:clinical|medical|therapeutic|knee pain|pain reduction|"
+        r"reduces? pain|treats? symptoms?|diagnos(?:e|is)|injury reduction)\b",
+        text,
+    ):
+        return (
+            "What controlled study, comparison group, and pre-defined outcome measure "
+            "substantiate this health or pain-reduction claim?"
+        )
+
+    # Physical consumer-product claims need representative trials, repeated-use
+    # evidence, and a measured baseline.
+    if re.search(
+        r"\b(?:comfort|fit consistency|fit-related|durability|wear trial|wear test|"
+        r"footwear|sneakers?|shoes?|insole|outsole|shoe weight|prototype durability|"
+        r"return rate)\b",
+        text,
+    ):
+        return (
+            "What was the wear-test protocol, who participated, and how did the "
+            "comfort, fit, or durability result compare with a measured baseline?"
+        )
+
+    # Audio hardware and meeting-intelligence claims need tests under realistic
+    # environmental conditions, not just a controlled demo.
+    if re.search(
+        r"\b(?:anc|active noise cancellation|noise control|microphone|mic array|"
+        r"voice pickup|battery life|battery runtime|earbuds?|earable|"
+        r"speaker diarisation|diarisation|transcription accuracy|meeting capture)\b",
+        text,
+    ):
+        return (
+            "Under which real-world noise, call, or battery conditions was this tested, "
+            "what benchmark was used, and how many trials were measured?"
+        )
+
     # Fundraising asks should focus on milestone/use-of-funds discipline rather
     # than treating the ask as a revenue forecast.
     if re.search(r"\b(?:raising|raise|funding ask|use of funds|capital ask)\b", text):
@@ -483,7 +521,46 @@ def _targeted_question_candidates(sentence: str, risk: str) -> List[str]:
     text = sentence.lower()
     base = _targeted_investor_question(sentence, risk)
 
-    if re.search(r"\b(?:raising|raise|funding ask|use of funds|capital ask)\b", text):
+    if re.search(
+        r"\b(?:clinical|medical|therapeutic|knee pain|pain reduction|reduces? pain|"
+        r"treats? symptoms?|diagnos(?:e|is)|injury reduction)\b",
+        text,
+    ):
+        alternatives = [
+            "What controlled trial measured the claimed outcome, and how did the results compare with a control or baseline group?",
+            "Who assessed the result, which outcome was defined before testing, and can an independent reviewer reproduce it?",
+            "What sample size and follow-up period support the claim, and were adverse or unchanged outcomes recorded too?",
+            "How much of the observed change can be attributed to the product rather than selection effects or other interventions?",
+            "Which independent evidence would be strong enough to justify using this outcome claim in customer-facing materials?",
+        ]
+    elif re.search(
+        r"\b(?:comfort|fit consistency|fit-related|durability|wear trial|wear test|"
+        r"footwear|sneakers?|shoes?|insole|outsole|shoe weight|prototype durability|"
+        r"return rate)\b",
+        text,
+    ):
+        alternatives = [
+            "How many users and product units were tested, for how long, and what comparison group established the baseline?",
+            "Which wear conditions, sizes, and user profiles were included, and what did the least successful group report?",
+            "What measured return, defect, or fit-complaint data shows this design works after repeated real-world use?",
+            "What pre-defined acceptance threshold did the product pass, and can the full test protocol and results be reviewed?",
+            "Did an independent lab or representative customer cohort validate the claim, or is the evidence limited to an internal trial?",
+            "How do the results compare with the closest competing product when both are tested under the same conditions?",
+        ]
+    elif re.search(
+        r"\b(?:anc|active noise cancellation|noise control|microphone|mic array|"
+        r"voice pickup|battery life|battery runtime|earbuds?|earable|"
+        r"speaker diarisation|diarisation|transcription accuracy|meeting capture)\b",
+        text,
+    ):
+        alternatives = [
+            "How does performance change in wind, background noise, overlapping speech, or other conditions users actually encounter?",
+            "Which benchmark and competing device were used, and can the reported result be reproduced on a fresh test set?",
+            "What error rate, response delay, or battery drain did you measure during a complete real-world session?",
+            "How many accents, environments, and device configurations were covered before you called this performance reliable?",
+            "What failure cases remain, and how frequently do they occur outside the controlled demo environment?",
+        ]
+    elif re.search(r"\b(?:raising|raise|funding ask|use of funds|capital ask)\b", text):
         alternatives = [
             "Break this raise into funded milestones: what will be delivered at each stage, and how many months of runway does each tranche buy?",
             "Which outcomes must this capital produce before you return to investors, and what evidence will demonstrate they were achieved?",
