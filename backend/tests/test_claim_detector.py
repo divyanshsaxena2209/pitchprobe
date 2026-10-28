@@ -2,7 +2,7 @@ from backend.analyzer import ModelManager, analyze_sentences
 from backend.claim_detector import (
     DOCUMENT_WARNING,
     TEMPLATE_WARNING,
-    document_warning_for_text,
+    document_warning_for_text,\n    document_warning_for_filename,
     is_investor_claim,
 )
 from backend.segmenter import split_into_sentences
@@ -327,3 +327,28 @@ def test_completed_pitch_deck_with_team_and_product_sections_is_not_a_resume():
     Funding Ask: $2M to reach 10,000 customers.
     """
     assert document_warning_for_text(deck_text) is None
+
+
+
+def test_exact_reference_non_pitch_filenames_are_rejected_before_parsing():
+    cases = {
+        "DA1_PitchProbe_Assignment.pdf": "academic assignment",
+        "CAD_Final_Report.pdf": "CAD final report",
+        "Asterion_Security_Policy.pdf": "Asterion security policy",
+        "BluePeak_Security_Policy.pdf": "BluePeak security policy",
+        "NVC_Pitch_Deck_Template.pdf": "NVC pitch-deck template",
+        "Resume.pdf": "resume/CV",
+    }
+    for filename, expected_message in cases.items():
+        warning = document_warning_for_filename(filename)
+        assert warning is not None, filename
+        assert expected_message.lower() in warning.lower(), filename
+
+
+def test_reference_pitch_deck_filenames_are_not_denylisted():
+    for filename in (
+        "Nivaro_Footwear_Pitch_Deck.pdf",
+        "Sonora_Seed_Pitch_Deck.pdf",
+        "StrideForge_PitchDeck.pdf",
+    ):
+        assert document_warning_for_filename(filename) is None
