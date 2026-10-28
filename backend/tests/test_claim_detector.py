@@ -87,7 +87,11 @@ def test_analyzer_scores_claims_but_skips_non_claims():
 
     results, summary, pipeline_info = analyze_sentences(
         sentences,
-        raw_text="We are a startup selling software to small businesses.",
+        raw_text=(
+            "Startup pitch deck | Seed round. Problem. Solution. Product. Market. "
+            "Business model. Financial plan. Team. We are a startup selling software "
+            "to small businesses."
+        ),
     )
 
     assert len(results) == 1
@@ -143,7 +147,11 @@ def test_finetuned_classifier_path_screens_claims_then_assigns_three_risk_labels
 
     results, summary, pipeline_info = analyze_sentences(
         sentences,
-        raw_text="We are a startup building software for small businesses.",
+        raw_text=(
+            "Seed-stage investor pitch deck. Problem. Solution. Product. Market. "
+            "Business model. Financial plan. Team. We are a startup building "
+            "software for small businesses."
+        ),
     )
 
     assert [item["risk"] for item in results] == ["Low", "Moderate", "High"]
