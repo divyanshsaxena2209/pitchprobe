@@ -8,6 +8,8 @@ from backend.analyzer import (
     generate_objection_question,
     _is_useful_generated_question,
     _targeted_investor_question,
+    _question_key,
+    _question_similarity,
     ModelManager,
 )
 
@@ -205,3 +207,36 @@ def test_fundraise_and_connectivity_claims_get_relevant_questions():
     )
     assert "connectivity" in connectivity
     assert "consent" in connectivity
+
+
+def test_question_generation_varies_wording_and_never_repeats_within_a_deck():
+    manager = ModelManager()
+    manager.use_flan_t5 = False
+    similar_claims = [
+        "We have 310 waitlist sign-ups, but zero paid units shipped.",
+        "Our waitlist has 420 sign-ups and no paid units shipped yet.",
+        "The beta attracted 200 users, but conversion to paying customers remains low.",
+        "We have strong traction among enterprise users, but retention is unproven.",
+        "Our pilot participants show growing activation but weak retention.",
+        "We acquired 500 users, but only a small fraction became paying customers.",
+        "Customer interviews show interest, but few users return after their first session.",
+        "We are rapidly growing and converting many customers after free trials.",
+    ]
+
+    questions = []
+    for claim in similar_claims:
+        question = generate_objection_question(
+            claim,
+            "Moderate",
+            manager,
+            previous_questions=questions,
+        )
+        assert question is not None
+        assert question.endswith("?")
+        assert _question_key(question) not in {_question_key(item) for item in questions}
+        questions.append(question)
+
+    # The wording should differ structurally, not merely by a changed token.
+    for index, question in enumerate(questions):
+        for earlier in questions[:index]:
+            assert _question_similarity(question, earlier) < 0.92
