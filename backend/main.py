@@ -103,6 +103,14 @@ async def analyze_pitch_deck(file: UploadFile = File(...)):
             raw_text=raw_text,
         )
 
+        # Reject unsupported documents explicitly instead of returning an empty
+        # successful analysis response. The detail is shown to the user by the UI.
+        if pipeline_info.get("document_warning"):
+            raise HTTPException(
+                status_code=422,
+                detail=pipeline_info["document_warning"],
+            )
+
         sentence_models = [SentenceAnalysis(**item) for item in results]
         summary_model = RiskSummary(
             total_sentences=len(sentence_models),
