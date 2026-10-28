@@ -8,6 +8,7 @@ from backend.analyzer import (
     generate_objection_question,
     _is_useful_generated_question,
     _targeted_investor_question,
+    _targeted_question_candidates,
     _question_key,
     _question_similarity,
     ModelManager,
@@ -240,3 +241,60 @@ def test_question_generation_varies_wording_and_never_repeats_within_a_deck():
     for index, question in enumerate(questions):
         for earlier in questions[:index]:
             assert _question_similarity(question, earlier) < 0.92
+
+
+def test_question_routing_is_specific_to_claims_in_reference_pitch_decks():
+    footwear_efficacy = _targeted_investor_question(
+        "MoveOne reduces knee pain by 35%.",
+        "High",
+    )
+    assert "controlled study" in footwear_efficacy
+    assert "comparison group" in footwear_efficacy
+
+    footwear_durability = _targeted_question_candidates(
+        "Our prototype passed all durability requirements.",
+        "Moderate",
+    )
+    assert any("wear conditions" in question or "independent lab" in question
+               for question in footwear_durability)
+
+    audio_performance = _targeted_investor_question(
+        "Our active noise cancellation and microphone array work in noisy offices.",
+        "High",
+    )
+    assert "real-world noise" in audio_performance
+    assert "benchmark" in audio_performance
+
+    audio_candidates = _targeted_question_candidates(
+        "The earbuds provide long battery life and accurate speaker diarisation.",
+        "Moderate",
+    )
+    assert any("battery drain" in question or "background noise" in question
+               for question in audio_candidates)
+
+
+def test_deck_question_history_changes_the_investigation_angle_for_related_claims():
+    manager = ModelManager()
+    manager.use_flan_t5 = False
+    related_claims = [
+        "80% of wear-trial participants rated comfort at least 4 out of 5.",
+        "Our prototype passed all durability requirements.",
+        "The shoe reduces fit-related returns after repeated use.",
+        "Customers report all-day comfort during their daily commute.",
+        "Our replacement insole improves long-term fit consistency.",
+    ]
+    questions = []
+    for claim in related_claims:
+        question = generate_objection_question(
+            claim,
+            "Moderate",
+            manager,
+            previous_questions=questions,
+        )
+        assert question and question.endswith("?")
+        assert _question_key(question) not in {_question_key(q) for q in questions}
+        questions.append(question)
+
+    for index, question in enumerate(questions):
+        for prior in questions[:index]:
+            assert _question_similarity(question, prior) < 0.92
