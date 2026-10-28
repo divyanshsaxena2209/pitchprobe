@@ -214,7 +214,9 @@ def document_warning_for_text(raw_text: Optional[str]) -> Optional[str]:
         bool(re.search(pattern, normalized, re.IGNORECASE))
         for pattern in resume_patterns
     )
-    if pitch_cue_hits == 0 and resume_hits >= 4:
+    # The supplied resume has a strong CV section pattern. An isolated
+    # mention of "pitch" in a project bullet must not override that signature.
+    if resume_hits >= 7 or (pitch_cue_hits == 0 and resume_hits >= 4):
         return DOCUMENT_WARNING
 
     # Workplace and information-security policies commonly mention people,
@@ -235,7 +237,9 @@ def document_warning_for_text(raw_text: Optional[str]) -> Optional[str]:
         bool(re.search(pattern, normalized, re.IGNORECASE))
         for pattern in policy_patterns
     )
-    if pitch_cue_hits == 0 and policy_hits >= 2:
+    # Specific policy headings plus document-control fields remain a
+    # negative signal even if the policy text mentions a startup or pitch.
+    if policy_hits >= 4 or (pitch_cue_hits == 0 and policy_hits >= 2):
         return DOCUMENT_WARNING
 
     # Reports and course deliverables are detected independently of whether
@@ -259,7 +263,9 @@ def document_warning_for_text(raw_text: Optional[str]) -> Optional[str]:
     has_report_title = bool(
         re.search(r"\b(?:project|technical|final)\s+report\b", normalized)
     )
-    if pitch_cue_hits == 0 and (report_hits >= 4 or (has_report_title and report_hits >= 2)):
+    if report_hits >= 6 or (
+        pitch_cue_hits == 0 and (report_hits >= 4 or (has_report_title and report_hits >= 2))
+    ):
         return DOCUMENT_WARNING
 
     # A pitch signal alone is insufficient: for example, an unrelated article
