@@ -87,7 +87,11 @@ def test_analyzer_scores_claims_but_skips_non_claims():
 
     results, summary, pipeline_info = analyze_sentences(
         sentences,
-        raw_text="We are a startup selling software to small businesses.",
+        raw_text=(
+            "Startup pitch deck | Seed round. Problem. Solution. Product. Market. "
+            "Business model. Financial plan. Team. We are a startup selling software "
+            "to small businesses."
+        ),
     )
 
     assert len(results) == 1
@@ -143,7 +147,11 @@ def test_finetuned_classifier_path_screens_claims_then_assigns_three_risk_labels
 
     results, summary, pipeline_info = analyze_sentences(
         sentences,
-        raw_text="We are a startup building software for small businesses.",
+        raw_text=(
+            "Seed-stage investor pitch deck. Problem. Solution. Product. Market. "
+            "Business model. Financial plan. Team. We are a startup building "
+            "software for small businesses."
+        ),
     )
 
     assert [item["risk"] for item in results] == ["Low", "Moderate", "High"]
@@ -193,3 +201,88 @@ def test_excludes_fictional_disclaimers_orphaned_metrics_and_nonclaims():
     assert not is_investor_claim(",000 paid pre-orders / refundable")
     assert not is_investor_claim("pilot if retention supports it.")
     assert not is_investor_claim("buyers who need fully offline AI or universal integrations.")
+
+
+def test_accepts_the_supplied_pitch_deck_reference_formats():
+    # Distilled text signatures from the supplied Nivaro, Sonora, StrideForge,
+    # and NVC pitch-deck/template PDFs. Each contains pitch context plus deck
+    # sections, rather than relying on a filename alone.
+    pitch_examples = [
+        """
+        INVESTOR PITCH | SEED ROUND
+        Nivaro Footwear. The customer problem, solution, flagship product,
+        market sizing, competitive landscape, traction, financial plan, team,
+        business model, go-to-market, and the ask.
+        """,
+        """
+        SONORA ONE | SEED ROUND. The Problem. The Solution. Product.
+        Technology. Market Opportunity. Competitive Landscape. Business Model.
+        Go-to-Market. Financial Plan. Team. The Ask.
+        """,
+        """
+        STRIDEFORGE FOOTWEAR PRIVATE LIMITED. STRIDEONE / SEED-STAGE INVESTOR
+        PRESENTATION. Problem. Product. Customer. Market. Business Model.
+        Go-to-Market. Traction. Financial Plan. Team. The Ask.
+        """,
+        """
+        Pitch Deck Example. Investment Opportunity. Problem. Solution.
+        Product. Market. Go-to-Market. Business Model. Team.
+        """,
+    ]
+    for deck_text in pitch_examples:
+        assert document_warning_for_text(deck_text) is None
+
+
+def test_rejects_the_supplied_assignment_resume_report_and_policy_signatures():
+    # These snippets are based on the supplied DA1, resume, technical report,
+    # and two workplace-policy PDFs. Some contain business terms, so the gate
+    # must classify the document as a whole before scoring individual claims.
+    non_pitch_examples = [
+        """
+        DIGITAL ASSIGNMENT 1 (DA1). Course Code: BCSE306L. B.Tech Computer
+        Science. Assignment. Submission Deadline. Student Name. Contribution
+        Matrix. Literature Survey. Research Gaps. Proposed System Architecture.
+        PitchProbe automated investor objection generation for startup pitch decks.
+        """,
+        """
+        EDUCATION. B.Tech Computer Science. Technical Skills. Experience.
+        Projects. LinkedIn. GitHub. CGPA. Email. Work experience.
+        """,
+        """
+        Course Code: BCSE355L. A PROJECT REPORT ON an AI-powered enterprise
+        workplace assistant. Technical report. Submitted by. Abstract.
+        Table of Contents. Chapter 1. Literature Review. References.
+        """,
+        """
+        ASTERION DYNAMICS. Information Security & Remote Work Policy.
+        Document ID. Policy Owner. Data Classification. Incident Reporting.
+        Retention and Disposal.
+        """,
+        """
+        BLUEPEAK SYSTEMS. Workplace Security & Information Handling Policy.
+        Document ID. Security & People Operations. Identity, Access, and
+        Authentication. Acceptable Use of AI. Incident Reporting.
+        """,
+        """
+        A general technical article describing software development,
+        application architecture, cloud services, and implementation details.
+        """,
+    ]
+    business_claim = "We achieved $10k MRR with 12% month-on-month growth, verified by Stripe export."
+    for document_text in non_pitch_examples:
+        assert document_warning_for_text(document_text) == DOCUMENT_WARNING
+        results, summary, pipeline_info = analyze_sentences(
+            [business_claim],
+            raw_text=document_text,
+        )
+        assert results == []
+        assert summary == {"low_risk": 0, "moderate_risk": 0, "high_risk": 0}
+        assert pipeline_info["document_warning"] == DOCUMENT_WARNING
+
+
+def test_empty_extracted_pdf_text_is_rejected_but_missing_test_context_is_allowed():
+    assert document_warning_for_text("") == DOCUMENT_WARNING
+    assert document_warning_for_text("   ") == DOCUMENT_WARNING
+    # None is used by existing sentence-only unit tests, where no document
+    # upload context is available to validate.
+    assert document_warning_for_text(None) is None

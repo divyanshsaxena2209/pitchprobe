@@ -1,0 +1,42 @@
+name: PitchProbe backend regression checks
+
+on:
+  pull_request:
+    branches: [finetuning-lab]
+    paths:
+      - "backend/**"
+      - "start_backend.py"
+      - ".github/workflows/backend-regression.yml"
+  push:
+    branches: [fix/clean-landing-hero]
+    paths:
+      - "backend/**"
+      - "start_backend.py"
+      - ".github/workflows/backend-regression.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  backend-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install backend and test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install -r backend/requirements.txt pytest pytest-asyncio httpx reportlab
+
+      - name: Run backend regression tests
+        run: python -m pytest backend/tests -q

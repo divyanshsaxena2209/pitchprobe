@@ -467,7 +467,7 @@ export default function UploadArea({ onResultsChange }: UploadAreaProps) {
                   {analysisResult.filename}
                 </h2>
                 <p className="text-xs text-[#777064] mt-1">
-                  Detected and risk-scored {analysisResult.total_sentences} investor-facing claims via {analysisResult.pipeline_info.mode} mode
+                  Detected and risk-scored {analysisResult.total_sentences} investor-facing claims
                 </p>
               </div>
 
@@ -567,7 +567,6 @@ export default function UploadArea({ onResultsChange }: UploadAreaProps) {
                     );
                   })}
                 </div>
-                <p className="category-note">Topics are grouped from claim wording; within each group, highest-risk claims appear first.</p>
               </div>
             </div>
           )}

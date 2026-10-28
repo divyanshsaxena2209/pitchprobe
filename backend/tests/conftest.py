@@ -37,6 +37,8 @@ def make_pdf():
 def sample_pitch_pdf(make_pdf):
     """Fixture providing a sample startup pitch deck PDF with Low, Moderate, and High claims."""
     claims = [
+        "Startup pitch deck | Seed round",
+        "Problem. Solution. Product. Market. Business model. Financial plan. Team.",
         "We achieved $10k MRR with 12% month-on-month growth, verified by Stripe export.",
         "Our platform will capture a massive, trillion-dollar global market with no competitors.",
         "We have significant traction and are rapidly growing in the enterprise sector.",
