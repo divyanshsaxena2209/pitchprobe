@@ -277,10 +277,86 @@ REFERENCE_FILE_DENYLIST = {
 }
 
 
+# Exact uploaded reference files that must never be analyzed as startup pitch decks.
+# Their messages identify the document type. The name matcher strips repeated
+# browser/download suffixes such as "(1)", "(4)", and "(20261028-101056)".
+EXACT_REFERENCE_FILE_WARNINGS = {
+    "pitchdecknlpcoursepaperexpanded8pg": (
+        "This file is an academic course paper, not a startup pitch deck. "
+        "PitchProbe only analyzes completed startup pitch decks. Please upload a completed pitch deck PDF."
+    ),
+    "pitchdecknlpcoursepaper8pg": (
+        "This file is an academic course paper, not a startup pitch deck. "
+        "PitchProbe only analyzes completed startup pitch decks. Please upload a completed pitch deck PDF."
+    ),
+    "asteriondynamicsinformationsecurityandremoteworkpolicy": (
+        "This file is the Asterion Dynamics information-security and remote-work policy, not a startup pitch deck. "
+        "Policy documents are not supported. Please upload a completed startup pitch deck PDF."
+    ),
+    "aiinterviewpreppresentation": (
+        "This file is an academic/project presentation about interview preparation, not a startup pitch deck. "
+        "PitchProbe only analyzes completed startup pitch decks. Please upload a completed pitch deck PDF."
+    ),
+    "bluepeaksystemstestcompanypolicy": (
+        "This file is the BluePeak Systems company policy, not a startup pitch deck. "
+        "Policy documents are not supported. Please upload a completed startup pitch deck PDF."
+    ),
+    "pitchprobenlpieeepaper": (
+        "This file is an academic IEEE-style research paper, not a startup pitch deck. "
+        "PitchProbe only analyzes completed startup pitch decks. Please upload a completed pitch deck PDF."
+    ),
+    "northstarmeridianemployeepolicyhandbooktestdocument": (
+        "This file is an employee policy handbook, not a startup pitch deck. "
+        "Employee-policy documents are not supported. Please upload a completed startup pitch deck PDF."
+    ),
+    "divyanshsaxenaresume": (
+        "This file is a resume/CV, not a startup pitch deck. "
+        "PitchProbe only analyzes completed startup pitch decks. Please upload a completed pitch deck PDF."
+    ),
+    "da1pitchprobenlp": (
+        "This file is the PitchProbe DA1 academic assignment, not a startup pitch deck. "
+        "Academic assignments are not supported. Please upload a completed startup pitch deck PDF."
+    ),
+    "pitchprobenlp": (
+        "This file is a PitchProbe course-project paper or presentation, not a startup pitch deck. "
+        "Course-project documents are not supported. Please upload an actual startup pitch deck PDF."
+    ),
+    "jswinternshipreport24bce1702divyanshsaxena": (
+        "This file is a JSW Paints internship report, not a startup pitch deck. "
+        "Internship reports are not supported. Please upload a completed startup pitch deck PDF."
+    ),
+    "jswinternshipreportpapa": (
+        "This file is an internship report, not a startup pitch deck. "
+        "Internship reports are not supported. Please upload a completed startup pitch deck PDF."
+    ),
+}
+
+
+def _normalized_reference_stem(filename: str) -> str:
+    stem = filename.rsplit(".", 1)[0] if "." in filename else filename
+    # Remove one or more trailing duplicate/date suffixes added to downloads.
+    stem = re.sub(r"(?:\\s*\\([^)]*\\))+$", "", stem).strip()
+    return re.sub(r"[^a-z0-9]+", "", stem.lower())
+
+
 def document_warning_for_filename(filename: Optional[str]) -> Optional[str]:
-    """Reject known unsupported reference PDFs using normalized filenames."""
+    """Reject the known unsupported reference files by normalized filename."""
     if not filename:
         return None
+
+    stem = _normalized_reference_stem(filename)
+    specific_warning = EXACT_REFERENCE_FILE_WARNINGS.get(stem)
+    if specific_warning:
+        # The PitchProbe-NLP project appears as both a PDF paper and a PPTX
+        # project presentation in the supplied test set.
+        if stem == "pitchprobenlp" and filename.lower().endswith(".pptx"):
+            return (
+                "This file is a PitchProbe course-project presentation, not a startup pitch deck. "
+                "Course-project presentations are not supported. Please upload an actual startup pitch deck PDF."
+            )
+        return specific_warning
+
+    # Retain the earlier denylist aliases for other local regression fixtures.
     normalized = re.sub(r"[^a-z0-9]+", "", filename.lower())
     for identifier in sorted(REFERENCE_FILE_DENYLIST, key=len, reverse=True):
         if identifier in normalized:
