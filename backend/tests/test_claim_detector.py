@@ -2,7 +2,8 @@ from backend.analyzer import ModelManager, analyze_sentences
 from backend.claim_detector import (
     DOCUMENT_WARNING,
     TEMPLATE_WARNING,
-    document_warning_for_text,\n    document_warning_for_filename,
+    document_warning_for_text,
+    document_warning_for_filename,
     is_investor_claim,
 )
 from backend.segmenter import split_into_sentences
