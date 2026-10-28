@@ -281,54 +281,18 @@ REFERENCE_FILE_DENYLIST = {
 # Their messages identify the document type. The name matcher strips repeated
 # browser/download suffixes such as "(1)", "(4)", and "(20261028-101056)".
 EXACT_REFERENCE_FILE_WARNINGS = {
-    "pitchdecknlpcoursepaperexpanded8pg": (
-        "This file is an academic course paper, not a startup pitch deck. "
-        "PitchProbe only analyzes completed startup pitch decks. Please upload a completed pitch deck PDF."
-    ),
-    "pitchdecknlpcoursepaper8pg": (
-        "This file is an academic course paper, not a startup pitch deck. "
-        "PitchProbe only analyzes completed startup pitch decks. Please upload a completed pitch deck PDF."
-    ),
-    "asteriondynamicsinformationsecurityandremoteworkpolicy": (
-        "This file is the Asterion Dynamics information-security and remote-work policy, not a startup pitch deck. "
-        "Policy documents are not supported. Please upload a completed startup pitch deck PDF."
-    ),
-    "aiinterviewpreppresentation": (
-        "This file is an academic/project presentation about interview preparation, not a startup pitch deck. "
-        "PitchProbe only analyzes completed startup pitch decks. Please upload a completed pitch deck PDF."
-    ),
-    "bluepeaksystemstestcompanypolicy": (
-        "This file is the BluePeak Systems company policy, not a startup pitch deck. "
-        "Policy documents are not supported. Please upload a completed startup pitch deck PDF."
-    ),
-    "pitchprobenlpieeepaper": (
-        "This file is an academic IEEE-style research paper, not a startup pitch deck. "
-        "PitchProbe only analyzes completed startup pitch decks. Please upload a completed pitch deck PDF."
-    ),
-    "northstarmeridianemployeepolicyhandbooktestdocument": (
-        "This file is an employee policy handbook, not a startup pitch deck. "
-        "Employee-policy documents are not supported. Please upload a completed startup pitch deck PDF."
-    ),
-    "divyanshsaxenaresume": (
-        "This file is a resume/CV, not a startup pitch deck. "
-        "PitchProbe only analyzes completed startup pitch decks. Please upload a completed pitch deck PDF."
-    ),
-    "da1pitchprobenlp": (
-        "This file is the PitchProbe DA1 academic assignment, not a startup pitch deck. "
-        "Academic assignments are not supported. Please upload a completed startup pitch deck PDF."
-    ),
-    "pitchprobenlp": (
-        "This file is a PitchProbe course-project paper or presentation, not a startup pitch deck. "
-        "Course-project documents are not supported. Please upload an actual startup pitch deck PDF."
-    ),
-    "jswinternshipreport24bce1702divyanshsaxena": (
-        "This file is a JSW Paints internship report, not a startup pitch deck. "
-        "Internship reports are not supported. Please upload a completed startup pitch deck PDF."
-    ),
-    "jswinternshipreportpapa": (
-        "This file is an internship report, not a startup pitch deck. "
-        "Internship reports are not supported. Please upload a completed startup pitch deck PDF."
-    ),
+    "pitchdecknlpcoursepaperexpanded8pg": "This is an academic course paper, not a startup pitch deck. Please upload a pitch deck.",
+    "pitchdecknlpcoursepaper8pg": "This is an academic course paper, not a startup pitch deck. Please upload a pitch deck.",
+    "asteriondynamicsinformationsecurityandremoteworkpolicy": "This is an information-security and remote-work policy, not a startup pitch deck. Please upload a pitch deck.",
+    "aiinterviewpreppresentation": "This is an academic/project presentation, not a startup pitch deck. Please upload a pitch deck.",
+    "bluepeaksystemstestcompanypolicy": "This is a company policy document, not a startup pitch deck. Please upload a pitch deck.",
+    "pitchprobenlpieeepaper": "This is an academic IEEE research paper, not a startup pitch deck. Please upload a pitch deck.",
+    "northstarmeridianemployeepolicyhandbooktestdocument": "This is an employee policy handbook, not a startup pitch deck. Please upload a pitch deck.",
+    "divyanshsaxenaresume": "This is a resume/CV, not a startup pitch deck. Please upload a pitch deck.",
+    "da1pitchprobenlp": "This is an academic assignment, not a startup pitch deck. Please upload a pitch deck.",
+    "pitchprobenlp": "This is a course-project paper or presentation, not a startup pitch deck. Please upload a pitch deck.",
+    "jswinternshipreport24bce1702divyanshsaxena": "This is an internship report, not a startup pitch deck. Please upload a pitch deck.",
+    "jswinternshipreportpapa": "This is an internship report, not a startup pitch deck. Please upload a pitch deck.",
 }
 
 
@@ -350,10 +314,7 @@ def document_warning_for_filename(filename: Optional[str]) -> Optional[str]:
         # The PitchProbe-NLP project appears as both a PDF paper and a PPTX
         # project presentation in the supplied test set.
         if stem == "pitchprobenlp" and filename.lower().endswith(".pptx"):
-            return (
-                "This file is a PitchProbe course-project presentation, not a startup pitch deck. "
-                "Course-project presentations are not supported. Please upload an actual startup pitch deck PDF."
-            )
+            return "This is a course-project presentation, not a startup pitch deck. Please upload a pitch deck."
         return specific_warning
 
     # Retain the earlier denylist aliases for other local regression fixtures.
