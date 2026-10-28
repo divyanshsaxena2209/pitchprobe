@@ -258,3 +258,72 @@ def test_template_detector_handles_compacted_and_line_broken_pdf_text():
         "Team Tip You need to convey that you are the team to execute this venture."
     )
     assert document_warning_for_text(extracted_template) == TEMPLATE_WARNING
+
+
+
+def test_rejects_resume_with_specific_message():
+    resume_text = """
+    Divyansh Saxena
+    Email: divyansh@example.com | LinkedIn
+    EDUCATION
+    B.Tech Computer Science and Engineering
+    TECHNICAL SKILLS
+    Python, Java, SQL
+    EXPERIENCE
+    Software Engineering Intern
+    PROJECTS
+    Certifications
+    """
+    warning = document_warning_for_text(resume_text)
+    assert warning is not None
+    assert "resume/CV" in warning
+    assert "startup pitch deck" in warning
+
+
+def test_rejects_company_policy_with_specific_message():
+    policy_text = """
+    COMPANY POLICY
+    Policy Statement
+    Scope and Purpose
+    Roles and Responsibilities
+    Policy Owner
+    Effective Date
+    Revision History
+    Information Security Policy
+    """
+    warning = document_warning_for_text(policy_text)
+    assert warning is not None
+    assert "policy or procedure document" in warning
+    assert "startup pitch deck" in warning
+
+
+def test_rejects_project_or_internship_report_with_specific_message():
+    report_text = """
+    Internship Report
+    Declaration
+    Certificate
+    Acknowledgement
+    Table of Contents
+    Abstract
+    Chapter 1 Introduction
+    Methodology
+    Conclusion
+    Appendix
+    """
+    warning = document_warning_for_text(report_text)
+    assert warning is not None
+    assert "report" in warning
+    assert "startup pitch deck" in warning
+
+
+def test_completed_pitch_deck_with_team_and_product_sections_is_not_a_resume():
+    deck_text = """
+    Startup Pitch Deck
+    Product and Market Opportunity
+    TAM: $5B
+    Our platform serves small businesses.
+    Team: founders with experience in software and sales.
+    Business Model: annual subscriptions.
+    Funding Ask: $2M to reach 10,000 customers.
+    """
+    assert document_warning_for_text(deck_text) is None
