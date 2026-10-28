@@ -708,6 +708,23 @@ def _select_diverse_question(
         question for question in unique_candidates
         if _question_key(question) not in history_keys
     ]
+    # If every unused topic template is already too close to an earlier
+    # question, add claim-specific options so the selector can change the angle
+    # and sentence structure instead of accepting a superficial rewording.
+    if previous_questions and available:
+        best_topic_distance = min(
+            max(_question_similarity(question, previous) for previous in previous_questions)
+            for question in available
+        )
+        if best_topic_distance > 0.52:
+            fallback = _fallback_question_candidates(sentence)
+            available_keys = {_question_key(question) for question in available}
+            available.extend(
+                question for question in fallback
+                if _question_key(question) not in history_keys
+                and _question_key(question) not in available_keys
+            )
+
     if not available:
         fallback = _fallback_question_candidates(sentence)
         available = [
