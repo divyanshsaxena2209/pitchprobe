@@ -914,6 +914,7 @@ def generate_objection_question(
 def analyze_sentences(
     sentences: List[str],
     raw_text: Optional[str] = None,
+    validate_document: bool = False,
 ) -> Tuple[List[Dict], Dict[str, int], Dict[str, object]]:
     """Screen claims, classify risk, then gate investor question generation."""
     manager = ModelManager.get_instance()
@@ -944,15 +945,18 @@ def analyze_sentences(
         "document_warning": None,
     }
 
-    # Skip obvious coursework/research files before classifying individual lines.
-    document_warning = document_warning_for_text(raw_text)
-    if document_warning:
-        pipeline_info["note"] = (
-            "Risk scoring was skipped because the document does not appear to "
-            "be a startup pitch deck."
-        )
-        pipeline_info["document_warning"] = document_warning
-        return [], summary_counts, pipeline_info
+    # Document validation is enforced by the upload/API layer.
+    # Keep it optional here so unit tests and internal callers can test
+    # claim screening and risk classification independently.
+    if validate_document:
+        document_warning = document_warning_for_text(raw_text)
+        if document_warning:
+            pipeline_info["note"] = (
+                "Risk scoring was skipped because the document does not appear "
+                "to be a startup pitch deck."
+            )
+            pipeline_info["document_warning"] = document_warning
+            return [], summary_counts, pipeline_info
 
     candidates: List[Tuple[str, str, float]] = []
 
