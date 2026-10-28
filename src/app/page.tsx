@@ -38,21 +38,18 @@ export default function Home() {
 
               <div className="process-strip" aria-label="How PitchProbe works">
                 <div className="process-step">
-                  <span className="process-index">01</span>
                   <div>
                     <p className="process-title">Scan the claims</p>
                     <p className="process-copy">Pull out the statements that need a closer look.</p>
                   </div>
                 </div>
                 <div className="process-step">
-                  <span className="process-index">02</span>
                   <div>
                     <p className="process-title">Rank by risk</p>
                     <p className="process-copy">Separate high-risk claims from more grounded ones.</p>
                   </div>
                 </div>
                 <div className="process-step">
-                  <span className="process-index">03</span>
                   <div>
                     <p className="process-title">Ask sharper questions</p>
                     <p className="process-copy">Prepare for the evidence an investor may request.</p>
@@ -67,7 +64,6 @@ export default function Home() {
                     <path d="M5 12h14m-6-6 6 6-6 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
                 </button>
-                <p className="hero-action-note">PDF only · Up to 20 MB · No extra setup</p>
               </div>
             </section>
 
