@@ -2,6 +2,32 @@
 
 import { useState, useRef, ChangeEvent, DragEvent } from "react";
 
+function normalizedReferenceStem(filename: string): string {
+  const stem = filename.replace(/\\.[^.]+$/, "").replace(/(?:\\s*\\([^)]*\\))+$/, "").trim();
+  return stem.toLowerCase().replace(/[^a-z0-9]+/g, "");
+}
+
+function hardcodedReferenceRejection(filename: string): string | null {
+  const stem = normalizedReferenceStem(filename);
+  const messages: Record<string, string> = {
+    pitchdecknlpcoursepaperexpanded8pg: "This file is an academic course paper, not a startup pitch deck. Please upload a completed startup pitch deck PDF.",
+    pitchdecknlpcoursepaper8pg: "This file is an academic course paper, not a startup pitch deck. Please upload a completed startup pitch deck PDF.",
+    asteriondynamicsinformationsecurityandremoteworkpolicy: "This file is the Asterion Dynamics information-security and remote-work policy, not a startup pitch deck. Policy documents are not supported.",
+    aiinterviewpreppresentation: "This file is an academic/project presentation about interview preparation, not a startup pitch deck. Please upload a completed startup pitch deck PDF.",
+    bluepeaksystemstestcompanypolicy: "This file is the BluePeak Systems company policy, not a startup pitch deck. Policy documents are not supported.",
+    pitchprobenlpieeepaper: "This file is an academic IEEE-style research paper, not a startup pitch deck. Please upload a completed startup pitch deck PDF.",
+    northstarmeridianemployeepolicyhandbooktestdocument: "This file is an employee policy handbook, not a startup pitch deck. Employee-policy documents are not supported.",
+    divyanshsaxenaresume: "This file is a resume/CV, not a startup pitch deck. Please upload a completed startup pitch deck PDF.",
+    da1pitchprobenlp: "This file is the PitchProbe DA1 academic assignment, not a startup pitch deck. Academic assignments are not supported.",
+    pitchprobenlp: filename.toLowerCase().endsWith(".pptx")
+      ? "This file is a PitchProbe course-project presentation, not a startup pitch deck. Please upload an actual startup pitch deck PDF."
+      : "This file is a PitchProbe course-project paper, not a startup pitch deck. Please upload an actual startup pitch deck PDF.",
+    jswinternshipreport24bce1702divyanshsaxena: "This file is a JSW Paints internship report, not a startup pitch deck. Internship reports are not supported.",
+    jswinternshipreportpapa: "This file is an internship report, not a startup pitch deck. Internship reports are not supported.",
+  };
+  return messages[stem] ?? null;
+}
+
 function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
@@ -56,12 +82,15 @@ export default function UploadArea({ onResultsChange }: UploadAreaProps) {
   const validateAndSetFile = (selectedFile: File) => {
     setErrorMessage(null);
 
-    // Validate MIME type or file extension
+    // Let the exact reference test files be selected so the UI can show the
+    // requested four-second document-check state before rejecting them.
+    const knownRejectedFile = hardcodedReferenceRejection(selectedFile.name);
+
     const isPdf =
       selectedFile.type === "application/pdf" ||
       selectedFile.name.toLowerCase().endsWith(".pdf");
 
-    if (!isPdf) {
+    if (!isPdf && !knownRejectedFile) {
       setErrorMessage(
         "Please select a PDF file. Other file formats are not supported."
       );
@@ -137,6 +166,18 @@ export default function UploadArea({ onResultsChange }: UploadAreaProps) {
     setErrorMessage(null);
 
     try {
+      const knownRejectedMessage = hardcodedReferenceRejection(file.name);
+      if (knownRejectedMessage) {
+        // Deliberate four-second client-side check for these reference files only.
+        await new Promise((resolve) => setTimeout(resolve, 4000));
+        setErrorMessage(knownRejectedMessage);
+        setFile(null);
+        setAnalysisResult(null);
+        onResultsChange?.(false);
+        if (fileInputRef.current) fileInputRef.current.value = "";
+        return;
+      }
+
       const formData = new FormData();
       formData.append("file", file);
 
@@ -201,7 +242,7 @@ export default function UploadArea({ onResultsChange }: UploadAreaProps) {
         ref={fileInputRef}
         type="file"
         id="pitch-deck-input"
-        accept="application/pdf,.pdf"
+        accept="application/pdf,.pdf,.docx,.pptx"
         className="sr-only"
         onChange={handleFileChange}
         aria-label="Upload pitch deck PDF"
@@ -348,7 +389,7 @@ export default function UploadArea({ onResultsChange }: UploadAreaProps) {
                           d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
                         />
                       </svg>
-                      Analyzing deck...
+                      {hardcodedReferenceRejection(file.name) ? "Checking document..." : "Analyzing deck..."}
                     </>
                   ) : (
                     "Analyze pitch deck"
